@@ -313,7 +313,7 @@
                       const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                       return (
                         <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
-                          <span className="w-2 h-2 rounded-full mr-3 shrink-0" style={{ backgroundColor: config.accentColor }}></span>
+                          <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                         </a>
                       );
@@ -325,7 +325,7 @@
                       const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                       return (
                         <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
-                          <span className="w-2 h-2 rounded-full mr-3 shrink-0" style={{ backgroundColor: config.accentColor }}></span>
+                          <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                         </a>
                       );
@@ -596,7 +596,7 @@
                                 const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                                 return (
                                   <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
-                                    <span className="w-2 h-2 rounded-full mr-3 shrink-0" style={{ backgroundColor: config.accentColor }}></span>
+                                    <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                                     <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                                   </a>
                                 );
@@ -608,7 +608,7 @@
                                 const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                                 return (
                                   <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
-                                    <span className="w-2 h-2 rounded-full mr-3 shrink-0" style={{ backgroundColor: config.accentColor }}></span>
+                                    <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                                     <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                                   </a>
                                 );
