@@ -26,9 +26,9 @@
     const { useState, useEffect, useCallback } = React;
 
     const MOCK_DATA = [
-      { id: '1', title: 'The Future of AI in Web Development', link: '#', description: 'Discover how artificial intelligence is shaping the way we build and design websites in 2026 and beyond.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250' },
-      { id: '2', title: '10 Essential Tailwind CSS Patterns', link: '#', description: 'A comprehensive guide to reusable utility-class patterns that will speed up your workflow and reduce CSS bloat.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250' },
-      { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250' },
+      { id: '1', title: 'The Future of AI in Web Development', link: '#', description: 'Discover how artificial intelligence is shaping the way we build and design websites in 2026 and beyond.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250', video: '' },
+      { id: '2', title: '10 Essential Tailwind CSS Patterns', link: '#', description: 'A comprehensive guide to reusable utility-class patterns that will speed up your workflow and reduce CSS bloat.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250', video: '' },
+      { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '' },
     ];
 
     function App() {
@@ -51,7 +51,7 @@
         tickerSpeed: 50,
         tickerCharLimit: 80,
         removeText: '', 
-        refreshRate: 60, // NEW: Auto-refresh interval in seconds
+        refreshRate: 60, // Auto-refresh interval in seconds
       });
 
       // =====================================================================
@@ -128,6 +128,16 @@
                 if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
 
                 let image = '';
+                let video = '';
+                
+                // Check for video file first
+                const videoEl = msg.querySelector('video');
+                if (videoEl && videoEl.getAttribute('src')) {
+                    video = videoEl.getAttribute('src');
+                    if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
+                }
+
+                // Fallback to image extraction
                 const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap');
                 if (photoWrap) {
                   const style = photoWrap.getAttribute('style');
@@ -137,7 +147,8 @@
                    const imgEl = msg.querySelector('.tgme_widget_message_photo img');
                    if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
                 }
-                items.push({ id: Math.random().toString(), title, link, description, image });
+                
+                items.push({ id: Math.random().toString(), title, link, description, image, video });
               }
             });
             items.reverse(); 
@@ -164,7 +175,7 @@
                       image = src;
                    }
                 }
-                items.push({ id: Math.random().toString(), title, link, description, image });
+                items.push({ id: Math.random().toString(), title, link, description, image, video: '' });
               }
             });
           }
@@ -173,6 +184,9 @@
           if (uniqueItems.length >= 2) {
             setFeedItems(uniqueItems);
             setInfoMsg(`Successfully extracted ${uniqueItems.length} items.`);
+          } else if (uniqueItems.length === 1) {
+            setFeedItems(uniqueItems);
+            setInfoMsg(`Successfully extracted 1 item.`);
           } else {
             throw new Error("Could not automatically identify feed items.");
           }
@@ -214,7 +228,7 @@
       }, [fetchFeedData]);
 
       // =====================================================================
-      // NEW: Background Polling logic to auto-refresh data seamlessly
+      // Background Polling logic to auto-refresh data seamlessly
       // =====================================================================
       useEffect(() => {
         // Only run polling if we are in embed mode, have a valid url, and rate is valid
@@ -272,7 +286,6 @@
       const displayItems = feedItems.slice(0, config.maxItems);
       
       // Calculate dynamic ticker duration to ensure constant speed regardless of content length
-      // Base config (5 items, 80 chars) yields a multiplier of 1.
       const actualItemCount = Math.max(1, displayItems.length);
       const durationMultiplier = (actualItemCount * config.tickerCharLimit) / 400;
       const tickerDuration = (110 - config.tickerSpeed) * durationMultiplier;
@@ -302,9 +315,13 @@
                 <div className="space-y-4 pb-4">
                   {displayItems.map((item, idx) => (
                     <a key={idx} href={item.link} target="_blank" rel="noopener noreferrer" className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
-                      {config.showImages && item.image && (
-                        <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700">
-                          <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                      {config.showImages && (item.video || item.image) && (
+                        <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
+                          {item.video ? (
+                            <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : (
+                            <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                          )}
                         </div>
                       )}
                       <div className="flex flex-col justify-center flex-1 min-w-0">
@@ -326,11 +343,15 @@
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
                   {displayItems.map((item, idx) => (
                     <a key={idx} href={item.link} target="_blank" rel="noopener noreferrer" className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
-                      {config.showImages && item.image ? (
-                        <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit">
-                          <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                      {config.showImages && (item.video || item.image) ? (
+                        <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
+                          {item.video ? (
+                            <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : (
+                            <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                          )}
                         </div>
-                      ) : config.showImages && !item.image ? (
+                      ) : config.showImages && !item.image && !item.video ? (
                          <div className="w-full h-16 bg-gradient-to-br opacity-50 border-b border-inherit" style={{ from: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', to: config.accentColor }}></div>
                       ) : null}
                       <div className="p-3 flex flex-col flex-1">
@@ -524,14 +545,14 @@
                       </div>
                     )}
 
-                    {/* NEW: Updated Layout to include Refresh settings next to Item Limits */}
+                    {/* Updated Layout to include Refresh settings next to Item Limits */}
                     <div className="space-y-4 pt-4 border-t border-gray-100">
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <label className="text-sm font-medium text-gray-700">Max Items</label>
                           <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.maxItems}</span>
                         </div>
-                        <input type="range" min="3" max="15" step="1" value={config.maxItems} onChange={(e) => setConfig({ ...config, maxItems: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                        <input type="range" min="1" max="15" step="1" value={config.maxItems} onChange={(e) => setConfig({ ...config, maxItems: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                       </div>
                       
                       <div>
@@ -599,9 +620,13 @@
                           <div className="space-y-4">
                             {displayItems.map((item, idx) => (
                               <a key={idx} href={item.link} target="_blank" rel="noopener noreferrer" className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
-                                {config.showImages && item.image && (
-                                  <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700">
-                                    <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                {config.showImages && (item.video || item.image) && (
+                                  <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
+                                    {item.video ? (
+                                      <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    ) : (
+                                      <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                    )}
                                   </div>
                                 )}
                                 <div className="flex flex-col justify-center flex-1 min-w-0">
@@ -624,9 +649,15 @@
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
                             {displayItems.map((item, idx) => (
                               <a key={idx} href={item.link} target="_blank" rel="noopener noreferrer" className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
-                                {config.showImages && item.image ? (
-                                  <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit"><img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} /></div>
-                                ) : config.showImages && !item.image ? (
+                                {config.showImages && (item.video || item.image) ? (
+                                  <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
+                                    {item.video ? (
+                                      <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    ) : (
+                                      <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                    )}
+                                  </div>
+                                ) : config.showImages && !item.image && !item.video ? (
                                    <div className="w-full h-24 bg-gradient-to-br opacity-50 border-b border-inherit" style={{ from: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', to: config.accentColor }}></div>
                                 ) : null}
                                 <div className="p-4 flex flex-col flex-1">
