@@ -25,9 +25,9 @@
     const { useState, useEffect, useCallback } = React;
 
     const MOCK_DATA = [
-      { id: '1', title: 'The Future of AI in Web Development', link: '#', description: 'Discover how artificial intelligence is shaping the way we build and design websites in 2026 and beyond.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250', video: '' },
-      { id: '2', title: '10 Essential Tailwind CSS Patterns', link: '#', description: 'A comprehensive guide to reusable utility-class patterns that will speed up your workflow and reduce CSS bloat.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250', video: '' },
-      { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '' },
+      { id: '1', title: 'The Future of AI in Web Development', link: '#', description: 'Discover how artificial intelligence is shaping the way we build and design websites in 2026 and beyond.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250', video: '', time: new Date(Date.now() - 5 * 60000).toISOString() },
+      { id: '2', title: '10 Essential Tailwind CSS Patterns', link: '#', description: 'A comprehensive guide to reusable utility-class patterns that will speed up your workflow and reduce CSS bloat.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250', video: '', time: new Date(Date.now() - 120 * 60000).toISOString() },
+      { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '', time: new Date(Date.now() - 1440 * 60000).toISOString() },
     ];
 
     function App() {
@@ -40,7 +40,7 @@
       const [copied, setCopied] = useState(false);
       
       const [carouselIndex, setCarouselIndex] = useState(0);
-      const [lightbox, setLightbox] = useState(null); // Lightbox State
+      const [lightbox, setLightbox] = useState(null);
 
       const [config, setConfig] = useState({
         layout: 'list',
@@ -56,9 +56,6 @@
         carouselMode: false, 
       });
 
-      // =====================================================================
-      // IMPORTANT: Replace this URL with your actual Vercel API URL!
-      // =====================================================================
       const myBackendUrl = 'https://YOUR_VERCEL_PROJECT_URL.vercel.app/api/fetch'; 
 
       const fetchFeedData = useCallback(async (targetUrl) => {
@@ -125,6 +122,13 @@
                 let link = dateLink.getAttribute('href');
                 if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
 
+                // Extract Time
+                let timeStr = '';
+                const timeEl = dateLink.querySelector('time');
+                if (timeEl && timeEl.getAttribute('datetime')) {
+                  timeStr = timeEl.getAttribute('datetime');
+                }
+
                 let image = '';
                 let video = '';
                 
@@ -144,7 +148,7 @@
                    if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
                 }
                 
-                items.push({ id: Math.random().toString(), title, link, description, image, video });
+                items.push({ id: Math.random().toString(), title, link, description, image, video, time: timeStr });
               }
             });
             items.reverse(); 
@@ -171,7 +175,7 @@
                       image = src;
                    }
                 }
-                items.push({ id: Math.random().toString(), title, link, description, image, video: '' });
+                items.push({ id: Math.random().toString(), title, link, description, image, video: '', time: '' });
               }
             });
           }
@@ -270,6 +274,21 @@
         return str.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
       };
 
+      const timeAgo = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const seconds = Math.round((now - date) / 1000);
+        const minutes = Math.round(seconds / 60);
+        const hours = Math.round(minutes / 60);
+        const days = Math.round(hours / 24);
+
+        if (seconds < 60) return 'Just now';
+        if (minutes < 60) return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
+        if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        return `${days} day${days > 1 ? 's' : ''} ago`;
+      };
+
       const displayItems = feedItems.slice(0, config.maxItems);
       
       const safeItemCount = Math.max(1, displayItems.length);
@@ -285,7 +304,6 @@
          return { background: `linear-gradient(to bottom right, ${config.theme === 'dark' ? '#1e293b' : '#f1f5f9'}, ${config.accentColor})` };
       }
 
-      // Common Lightbox Component to render over everything
       const renderLightbox = () => {
         if (!lightbox) return null;
         return (
@@ -317,7 +335,6 @@
               .embed-scroll::-webkit-scrollbar-track { background: transparent; }
               .embed-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
               
-              /* Device Aware Carousel Hover Navigation */
               .carousel-nav-container { opacity: 1; transition: opacity 0.3s ease; }
               @media (hover: hover) and (pointer: fine) {
                 .carousel-nav-container { opacity: 0; pointer-events: none; }
@@ -353,9 +370,14 @@
 
                           <div className="flex flex-col justify-center flex-1 min-w-0">
                             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-                              <h3 className="font-semibold text-base leading-tight mb-2 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
+                              <h3 className="font-semibold text-base leading-tight mb-1 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                 {cleanText(item.title)}
                               </h3>
+                              {item.time && (
+                                <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                                  <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
+                                </p>
+                              )}
                               {config.showDescription && item.description && (
                                 <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                   {cleanText(item.description)}
@@ -410,6 +432,11 @@
                           <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                             {cleanText(item.title)}
                           </h3>
+                          {item.time && (
+                            <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                              <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
+                            </p>
+                          )}
                           {config.showDescription && item.description && (
                             <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                               {cleanText(item.description)}
@@ -434,6 +461,7 @@
                         <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                           <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
+                          {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                         </a>
                       );
                     })}
@@ -446,6 +474,7 @@
                         <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                           <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
+                          {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                         </a>
                       );
                     })}
@@ -461,9 +490,6 @@
         );
       }
 
-      // =====================================================================
-      // RENDER: GENERATOR UI 
-      // =====================================================================
       return (
         <div className="min-h-screen bg-gray-50 text-slate-800 font-sans">
           <style>{`
@@ -474,7 +500,6 @@
             .preview-scroll::-webkit-scrollbar-track { background: transparent; }
             .preview-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
             
-            /* Device Aware Carousel Hover Navigation */
             .carousel-nav-container { opacity: 1; transition: opacity 0.3s ease; }
             @media (hover: hover) and (pointer: fine) {
               .carousel-nav-container { opacity: 0; pointer-events: none; }
@@ -710,9 +735,14 @@
 
                                     <div className="flex flex-col justify-center flex-1 min-w-0">
                                       <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-                                        <h3 className="font-semibold text-lg sm:text-base leading-tight mb-2 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
+                                        <h3 className="font-semibold text-lg sm:text-base leading-tight mb-1 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                           {cleanText(item.title)}
                                         </h3>
+                                        {item.time && (
+                                          <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                                            <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
+                                          </p>
+                                        )}
                                         {config.showDescription && item.description && (
                                           <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                             {cleanText(item.description)}
@@ -764,9 +794,14 @@
                                 ) : null}
                                 <div className="p-4 flex flex-col flex-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
-                                    <h3 className="font-bold text-sm leading-snug mb-2 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
+                                    <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                                       {cleanText(item.title)}
                                     </h3>
+                                    {item.time && (
+                                      <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                                        <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
+                                      </p>
+                                    )}
                                     {config.showDescription && item.description && (
                                       <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                         {cleanText(item.description)}
@@ -791,6 +826,7 @@
                                   <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                                     <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                                     <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
+                                    {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                                   </a>
                                 );
                               })}
@@ -803,6 +839,7 @@
                                   <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                                     <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
                                     <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
+                                    {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                                   </a>
                                 );
                               })}
