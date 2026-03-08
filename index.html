@@ -64,24 +64,46 @@
         setInfoMsg('');
         
         try {
-          let fetchUrl = targetUrl;
-          if (fetchUrl.match(/t\.me\/[a-zA-Z0-9_]+$/) && !fetchUrl.includes('/s/')) {
-            fetchUrl = fetchUrl.replace('t.me/', 't.me/s/');
+          let fetchUrl = targetUrl.trim();
+          
+          // Robustly format Telegram URLs to point to the web preview feed (/s/)
+          try {
+            const urlObj = new URL(fetchUrl);
+            if (urlObj.hostname === 't.me' || urlObj.hostname === 'www.t.me') {
+              const parts = urlObj.pathname.split('/').filter(Boolean);
+              if (parts.length === 1 && parts[0] !== 's') {
+                urlObj.pathname = '/s/' + parts[0];
+                fetchUrl = urlObj.toString();
+              }
+            }
+          } catch(e) {
+             console.warn("URL parsing issue:", e);
           }
 
           let htmlString = '';
           try {
+            // 1. Try Vercel Backend First
             const response = await fetch(`${myBackendUrl}?url=${encodeURIComponent(fetchUrl)}`);
             if (!response.ok) throw new Error('Vercel backend failed');
             htmlString = await response.text();
           } catch (backendErr) {
-            console.warn('Backend failed, falling back to proxy...', backendErr);
-            const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fetchUrl)}`);
-            const data = await resFallback.json();
-            htmlString = data.contents;
+            console.warn('Backend failed, falling back to proxy waterfall...', backendErr);
+            try {
+              // 2. Fallback Proxy 1: CodeTabs
+              const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(fetchUrl)}`);
+              if (!res1.ok) throw new Error('CodeTabs proxy blocked the request');
+              htmlString = await res1.text();
+            } catch (err1) {
+              console.warn('CodeTabs failed, trying AllOrigins...', err1);
+              // 3. Fallback Proxy 2: AllOrigins
+              const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fetchUrl)}`);
+              if (!resFallback.ok) throw new Error('All free proxies failed or rate-limited');
+              const data = await resFallback.json();
+              htmlString = data.contents;
+            }
           }
 
-          if (!htmlString || !htmlString.includes('<html')) throw new Error("Could not fetch valid HTML.");
+          if (!htmlString || !htmlString.includes('<html')) throw new Error("Could not fetch valid HTML from the target URL.");
 
           const parser = new DOMParser();
           const doc = parser.parseFromString(htmlString, 'text/html');
@@ -90,7 +112,7 @@
           
           if (fetchUrl.includes('t.me/s/')) {
             const messages = doc.querySelectorAll('.tgme_widget_message');
-            if (messages.length === 0) throw new Error("No Telegram messages found.");
+            if (messages.length === 0) throw new Error("No Telegram messages found. Channel may be private or proxy was blocked.");
 
             messages.forEach((msg) => {
               const textEl = msg.querySelector('.tgme_widget_message_text');
@@ -155,8 +177,9 @@
             throw new Error("Could not automatically identify feed items.");
           }
         } catch (err) {
+          console.error("Scraping error:", err);
           setFeedItems(MOCK_DATA);
-          setErrorMsg("Could not parse securely. Showing demo data instead.");
+          setErrorMsg(`Could not parse securely (${err.message}). Showing demo data instead.`);
         } finally {
           setIsGenerating(false);
         }
