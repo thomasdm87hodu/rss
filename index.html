@@ -21,8 +21,8 @@
 <body>
   <div id="root"></div>
 
-  <!-- Our React App code wrapped in a Babel script -->
-  <script type="text/babel" data-type="module">
+  <!-- Removed data-type="module" so it perfectly runs on local files and servers alike -->
+  <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
 
     const MOCK_DATA = [
@@ -40,10 +40,8 @@
       const [infoMsg, setInfoMsg] = useState('');
       const [copied, setCopied] = useState(false);
       
-      // Track the active carousel slide
       const [carouselIndex, setCarouselIndex] = useState(0);
 
-      // Widget Configuration State
       const [config, setConfig] = useState({
         layout: 'list',
         theme: 'light',
@@ -54,8 +52,8 @@
         tickerSpeed: 50,
         tickerCharLimit: 80,
         removeText: '', 
-        refreshRate: 60,
-        carouselMode: false, // NEW: Carousel toggle
+        refreshRate: 60, 
+        carouselMode: false, 
       });
 
       // =====================================================================
@@ -70,7 +68,6 @@
         try {
           let fetchUrl = targetUrl.trim();
           
-          // Robustly format Telegram URLs to point to the web preview feed (/s/)
           try {
             const urlObj = new URL(fetchUrl);
             if (urlObj.hostname === 't.me' || urlObj.hostname === 'www.t.me') {
@@ -86,20 +83,17 @@
 
           let htmlString = '';
           try {
-            // 1. Try Vercel Backend First
             const response = await fetch(`${myBackendUrl}?url=${encodeURIComponent(fetchUrl)}`);
             if (!response.ok) throw new Error('Vercel backend failed');
             htmlString = await response.text();
           } catch (backendErr) {
             console.warn('Backend failed, falling back to proxy waterfall...', backendErr);
             try {
-              // 2. Fallback Proxy 1: CodeTabs
               const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(fetchUrl)}`);
               if (!res1.ok) throw new Error('CodeTabs proxy blocked the request');
               htmlString = await res1.text();
             } catch (err1) {
               console.warn('CodeTabs failed, trying AllOrigins...', err1);
-              // 3. Fallback Proxy 2: AllOrigins
               const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fetchUrl)}`);
               if (!resFallback.ok) throw new Error('All free proxies failed or rate-limited');
               const data = await resFallback.json();
@@ -134,14 +128,12 @@
                 let image = '';
                 let video = '';
                 
-                // Check for video file first
                 const videoEl = msg.querySelector('video');
                 if (videoEl && videoEl.getAttribute('src')) {
                     video = videoEl.getAttribute('src');
                     if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
                 }
 
-                // Fallback to image extraction
                 const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap');
                 if (photoWrap) {
                   const style = photoWrap.getAttribute('style');
@@ -200,10 +192,10 @@
           setErrorMsg(`Could not parse securely (${err.message}). Showing demo data instead.`);
         } finally {
           setIsGenerating(false);
+          setCarouselIndex(0); // Always reset carousel to first slide on fresh data
         }
       }, [myBackendUrl]);
 
-      // Initialization for Embed Mode
       useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('embed') === 'true') {
@@ -232,17 +224,11 @@
         }
       }, [fetchFeedData]);
 
-      // =====================================================================
-      // Background Polling logic to auto-refresh data seamlessly
-      // =====================================================================
       useEffect(() => {
-        // Only run polling if we are in embed mode, have a valid url, and rate is valid
         if (!isEmbedMode || !url || url === 'demo' || config.refreshRate < 10) return;
-        
         const intervalId = setInterval(() => {
           fetchFeedData(url);
         }, config.refreshRate * 1000); 
-        
         return () => clearInterval(intervalId);
       }, [isEmbedMode, url, config.refreshRate, fetchFeedData]);
 
@@ -253,7 +239,6 @@
 
       const handleCopyCode = () => {
         const baseUrl = window.location.href.split('?')[0];
-        
         const embedCode = `
 <!-- RSS Feed Widget -->
 <iframe 
@@ -279,26 +264,29 @@
         document.body.removeChild(textArea);
       };
 
-      // Helper function to strip out the custom unwanted text
       const cleanText = (str) => {
         if (!str || !config.removeText) return str;
         const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         return str.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
       };
 
-      // Carousel Navigation Functions
-      const nextSlide = () => setCarouselIndex((prev) => (prev + 1) % displayItems.length);
-      const prevSlide = () => setCarouselIndex((prev) => (prev - 1 + displayItems.length) % displayItems.length);
-
       const displayItems = feedItems.slice(0, config.maxItems);
       
-      const actualItemCount = Math.max(1, displayItems.length);
-      const durationMultiplier = (actualItemCount * config.tickerCharLimit) / 400;
+      // Defend against length 0 preventing modulo bugs
+      const safeItemCount = Math.max(1, displayItems.length);
+      const activeCarouselIndex = carouselIndex % safeItemCount;
+
+      const nextSlide = () => setCarouselIndex((prev) => displayItems.length ? (prev + 1) % displayItems.length : 0);
+      const prevSlide = () => setCarouselIndex((prev) => displayItems.length ? (prev - 1 + displayItems.length) % displayItems.length : 0);
+
+      const durationMultiplier = (safeItemCount * config.tickerCharLimit) / 400;
       const tickerDuration = (110 - config.tickerSpeed) * durationMultiplier;
 
-      // =====================================================================
-      // RENDER: EMBED WIDGET ONLY (No UI)
-      // =====================================================================
+      // Generates the proper fallback background styling string safely
+      const getGradientStyle = () => {
+         return { background: `linear-gradient(to bottom right, ${config.theme === 'dark' ? '#1e293b' : '#f1f5f9'}, ${config.accentColor})` };
+      }
+
       if (isEmbedMode) {
         return (
           <div className={`w-full min-h-screen overflow-hidden ${config.theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-800'}`}>
@@ -318,14 +306,13 @@
             <div className={`w-full h-screen ${config.layout !== 'ticker' ? 'embed-scroll overflow-y-auto p-4' : 'flex items-center'}`}>
               
               {config.layout === 'list' && (
-                <div className="relative">
+                <div className="relative w-full">
                   <div className="space-y-4 pb-2">
                     {displayItems.map((item, idx) => {
-                      if (config.carouselMode && idx !== carouselIndex) return null;
+                      if (config.carouselMode && idx !== activeCarouselIndex) return null;
                       return (
                         <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
                           
-                          {/* Image or Video Wrapper */}
                           {config.showImages && (item.video || item.image) && (
                             <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                               {item.video ? (
@@ -338,7 +325,6 @@
                             </div>
                           )}
 
-                          {/* Content Wrapper */}
                           <div className="flex flex-col justify-center flex-1 min-w-0">
                             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                               <h3 className="font-semibold text-base leading-tight mb-2 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
@@ -356,14 +342,13 @@
                     })}
                   </div>
 
-                  {/* Carousel Nav Arrows */}
                   {config.carouselMode && displayItems.length > 1 && (
                     <div className="flex justify-between items-center mt-2 px-2 pb-4">
                       <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
                       <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                        {carouselIndex + 1} / {displayItems.length}
+                        {activeCarouselIndex + 1} / {displayItems.length}
                       </span>
                       <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
@@ -374,7 +359,7 @@
               )}
 
               {config.layout === 'grid' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 w-full">
                   {displayItems.map((item, idx) => (
                     <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
                       {config.showImages && (item.video || item.image) ? (
@@ -388,7 +373,7 @@
                           )}
                         </div>
                       ) : config.showImages && !item.image && !item.video ? (
-                         <div className="w-full h-16 bg-gradient-to-br opacity-50 border-b border-inherit" style={{ from: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', to: config.accentColor }}></div>
+                         <div className="w-full h-16 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
                       ) : null}
                       <div className="p-3 flex flex-col flex-1">
                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
@@ -530,7 +515,6 @@
                       </div>
                     </div>
 
-                    {/* Remove Text Filter */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                         <i className="fa-solid fa-eraser"></i> Text to Remove
@@ -561,7 +545,6 @@
                           </div>
                         </label>
                         
-                        {/* Carousel Mode Toggle */}
                         {config.layout === 'list' && (
                           <label className="flex items-center justify-between cursor-pointer">
                             <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-clapperboard"></i> Carousel Mode</span>
@@ -663,14 +646,13 @@
                       <div className={`relative w-full overflow-hidden transition-colors duration-300 ${config.theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-800'} ${config.layout !== 'ticker' ? 'h-[500px] preview-scroll overflow-y-auto p-4 sm:p-6' : 'h-16 flex items-center border-y'}`} style={{ borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9' }}>
                         
                         {config.layout === 'list' && (
-                          <div className="relative">
+                          <div className="relative w-full">
                             <div className="space-y-4 pb-2">
                               {displayItems.map((item, idx) => {
-                                if (config.carouselMode && idx !== carouselIndex) return null;
+                                if (config.carouselMode && idx !== activeCarouselIndex) return null;
                                 return (
                                   <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
                                     
-                                    {/* Image or Video Wrapper */}
                                     {config.showImages && (item.video || item.image) && (
                                       <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                                         {item.video ? (
@@ -683,7 +665,6 @@
                                       </div>
                                     )}
 
-                                    {/* Content Wrapper */}
                                     <div className="flex flex-col justify-center flex-1 min-w-0">
                                       <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                                         <h3 className="font-semibold text-lg sm:text-base leading-tight mb-2 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
@@ -701,14 +682,13 @@
                               })}
                             </div>
 
-                            {/* Carousel Nav Arrows */}
                             {config.carouselMode && displayItems.length > 1 && (
                               <div className="flex justify-between items-center mt-2 px-2 pb-4">
                                 <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                   <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                 </button>
                                 <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                                  {carouselIndex + 1} / {displayItems.length}
+                                  {activeCarouselIndex + 1} / {displayItems.length}
                                 </span>
                                 <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                   Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
@@ -719,7 +699,7 @@
                         )}
 
                         {config.layout === 'grid' && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
                             {displayItems.map((item, idx) => (
                               <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
                                 {config.showImages && (item.video || item.image) ? (
@@ -733,7 +713,7 @@
                                     )}
                                   </div>
                                 ) : config.showImages && !item.image && !item.video ? (
-                                   <div className="w-full h-24 bg-gradient-to-br opacity-50 border-b border-inherit" style={{ from: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', to: config.accentColor }}></div>
+                                   <div className="w-full h-24 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
                                 ) : null}
                                 <div className="p-4 flex flex-col flex-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
@@ -759,4 +739,45 @@
                             <div className="flex animate-marquee shrink-0 items-center">
                               {displayItems.concat(displayItems).map((item, idx) => {
                                 const cTitle = cleanText(item.title);
-                                const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...'
+                                const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
+                                return (
+                                  <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
+                                    <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
+                                    <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                            <div className="flex animate-marquee shrink-0 items-center" aria-hidden="true">
+                              {displayItems.concat(displayItems).map((item, idx) => {
+                                const cTitle = cleanText(item.title);
+                                const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
+                                return (
+                                  <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
+                                    <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
+                                    <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
+                                  </a>
+                                );
+                              })}
+                            </div>
+
+                            <div className={`absolute right-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-l ${config.theme === 'dark' ? 'from-slate-900 to-transparent' : 'from-white to-transparent'}`}></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
