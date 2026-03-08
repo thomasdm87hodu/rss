@@ -231,6 +231,12 @@
       };
 
       const displayItems = feedItems.slice(0, config.maxItems);
+      
+      // Calculate dynamic ticker duration to ensure constant speed regardless of content length
+      // Base config (5 items, 80 chars) yields a multiplier of 1.
+      const actualItemCount = Math.max(1, displayItems.length);
+      const durationMultiplier = (actualItemCount * config.tickerCharLimit) / 400;
+      const tickerDuration = (110 - config.tickerSpeed) * durationMultiplier;
 
       // =====================================================================
       // RENDER: EMBED WIDGET ONLY (No UI)
@@ -242,7 +248,7 @@
               body { background-color: ${config.theme === 'dark' ? '#0f172a' : '#ffffff'}; margin: 0; }
               @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-100%); } }
               .animate-marquee {
-                animation: marquee ${110 - config.tickerSpeed}s linear infinite;
+                animation: marquee ${tickerDuration}s linear infinite;
                 ${config.tickerSpeed === 0 ? 'animation-play-state: paused !important;' : ''}
               }
               .pause-on-hover:hover .animate-marquee { animation-play-state: paused; }
@@ -347,7 +353,7 @@
         <div className="min-h-screen bg-gray-50 text-slate-800 font-sans">
           <style>{`
             @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-100%); } }
-            .animate-marquee { animation: marquee ${110 - config.tickerSpeed}s linear infinite; ${config.tickerSpeed === 0 ? 'animation-play-state: paused !important;' : ''} }
+            .animate-marquee { animation: marquee ${tickerDuration}s linear infinite; ${config.tickerSpeed === 0 ? 'animation-play-state: paused !important;' : ''} }
             .pause-on-hover:hover .animate-marquee { animation-play-state: paused; }
             .preview-scroll::-webkit-scrollbar { width: 6px; }
             .preview-scroll::-webkit-scrollbar-track { background: transparent; }
