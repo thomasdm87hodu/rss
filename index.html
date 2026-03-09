@@ -11,6 +11,11 @@
   <!-- Load FontAwesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
+  <!-- Load Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
   <!-- Load React & ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -46,6 +51,8 @@
         layout: 'list',
         theme: 'light',
         bgColor: '#ffffff',
+        cardBgColor: '#f8fafc',
+        fontFamily: 'sans',
         accentColor: '#3b82f6',
         showImages: true,
         showDescription: true,
@@ -223,6 +230,8 @@
             layout: params.get('layout') || 'list',
             theme: urlTheme,
             bgColor: params.get('bg') ? decodeURIComponent(params.get('bg')) : (urlTheme === 'dark' ? '#0f172a' : '#ffffff'),
+            cardBgColor: params.get('cardBg') ? decodeURIComponent(params.get('cardBg')) : (urlTheme === 'dark' ? '#1e293b' : '#f8fafc'),
+            fontFamily: params.get('font') || 'sans',
             accentColor: params.get('color') || '#3b82f6',
             showImages: params.get('imgs') !== 'false',
             showDescription: params.get('desc') !== 'false',
@@ -264,7 +273,7 @@
         const embedCode = `
 <!-- RSS Feed Widget -->
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&bg=${encodeURIComponent(config.bgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" 
   width="100%" 
   height="${config.layout === 'ticker' ? '60' : '500'}" 
   frameborder="0" 
@@ -322,6 +331,10 @@
          return { background: `linear-gradient(to bottom right, ${config.theme === 'dark' ? '#1e293b' : '#f1f5f9'}, ${config.accentColor})` };
       }
 
+      const getWidgetFontFamily = () => {
+        return config.fontFamily === 'jetbrains' ? '"JetBrains Mono", monospace' : 'inherit';
+      }
+
       const renderLightbox = () => {
         if (!lightbox) return null;
         return (
@@ -340,7 +353,7 @@
 
       if (isEmbedMode) {
         return (
-          <div className={`w-full min-h-screen overflow-hidden ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.bgColor }}>
+          <div className={`w-full min-h-screen overflow-hidden ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.bgColor, fontFamily: getWidgetFontFamily() }}>
             <style>{`
               body { background-color: ${config.bgColor}; margin: 0; }
               @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-100%); } }
@@ -368,7 +381,7 @@
                     {displayItems.map((item, idx) => {
                       if (config.carouselMode && idx !== activeCarouselIndex) return null;
                       return (
-                        <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
+                        <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                           
                           {config.showImages && (item.video || item.image) && (
                             <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
@@ -392,12 +405,12 @@
                                 {cleanText(item.title)}
                               </h3>
                               {item.time && (
-                                <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                                <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                                   <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                                 </p>
                               )}
                               {config.showDescription && item.description && (
-                                <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                   {cleanText(item.description)}
                                 </p>
                               )}
@@ -427,7 +440,7 @@
               {config.layout === 'grid' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 w-full">
                   {displayItems.map((item, idx) => (
-                    <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
+                    <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                       {config.showImages && (item.video || item.image) ? (
                         <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
@@ -451,12 +464,12 @@
                             {cleanText(item.title)}
                           </h3>
                           {item.time && (
-                            <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                            <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                               <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                             </p>
                           )}
                           {config.showDescription && item.description && (
-                            <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                            <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                               {cleanText(item.description)}
                             </p>
                           )}
@@ -583,8 +596,16 @@
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-sliders"></i> Theme</label>
                       <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setConfig({ ...config, theme: 'light', bgColor: '#ffffff' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'light' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Light</button>
-                        <button onClick={() => setConfig({ ...config, theme: 'dark', bgColor: '#0f172a' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'dark' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Dark</button>
+                        <button onClick={() => setConfig({ ...config, theme: 'light', bgColor: '#ffffff', cardBgColor: '#f8fafc' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'light' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Light</button>
+                        <button onClick={() => setConfig({ ...config, theme: 'dark', bgColor: '#0f172a', cardBgColor: '#1e293b' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'dark' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Dark</button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-font"></i> Font Family</label>
+                      <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button onClick={() => setConfig({ ...config, fontFamily: 'sans' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'sans' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>System Sans</button>
+                        <button onClick={() => setConfig({ ...config, fontFamily: 'jetbrains' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'jetbrains' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`} style={{fontFamily: '"JetBrains Mono", monospace'}}>JetBrains Mono</button>
                       </div>
                     </div>
 
@@ -597,13 +618,25 @@
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                        <i className="fa-solid fa-fill-drip"></i> Background Color
-                      </label>
-                      <div className="flex gap-2 items-center">
-                        <input type="color" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                        <input type="text" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-28 uppercase" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                          <i className="fa-solid fa-fill-drip"></i> Main Background
+                        </label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                          <input type="text" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                          <i className="fa-solid fa-square"></i> Card Background
+                        </label>
+                        <div className="flex gap-2 items-center">
+                          <input type="color" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                          <input type="text" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
+                        </div>
                       </div>
                     </div>
 
@@ -700,7 +733,7 @@
                     <p className="text-sm text-gray-600 mb-3">Copy this code and paste it into Framer to embed the widget.</p>
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&bg=${encodeURIComponent(config.bgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" width="100%" height="${config.layout === 'ticker' ? '60' : '500'}" frameborder="0" style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" width="100%" height="${config.layout === 'ticker' ? '60' : '500'}" frameborder="0" style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -735,7 +768,7 @@
                         <div className="ml-4 flex-1 bg-white border border-gray-200 rounded text-[10px] px-2 py-1 text-gray-400 font-mono flex items-center">your-website.com</div>
                       </div>
 
-                      <div className={`relative w-full overflow-hidden transition-colors duration-300 ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} ${config.layout !== 'ticker' ? 'h-[500px] preview-scroll overflow-y-auto p-4 sm:p-6' : 'h-16 flex items-center border-y'}`} style={{ borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', backgroundColor: config.bgColor }}>
+                      <div className={`relative w-full overflow-hidden transition-colors duration-300 ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} ${config.layout !== 'ticker' ? 'h-[500px] preview-scroll overflow-y-auto p-4 sm:p-6' : 'h-16 flex items-center border-y'}`} style={{ borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', backgroundColor: config.bgColor, fontFamily: getWidgetFontFamily() }}>
                         
                         {config.layout === 'list' && (
                           <div className="relative w-full group/carousel">
@@ -743,7 +776,7 @@
                               {displayItems.map((item, idx) => {
                                 if (config.carouselMode && idx !== activeCarouselIndex) return null;
                                 return (
-                                  <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
+                                  <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                     
                                     {config.showImages && (item.video || item.image) && (
                                       <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
@@ -767,12 +800,12 @@
                                           {cleanText(item.title)}
                                         </h3>
                                         {item.time && (
-                                          <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                                          <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                                             <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                                           </p>
                                         )}
                                         {config.showDescription && item.description && (
-                                          <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                          <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                             {cleanText(item.description)}
                                           </p>
                                         )}
@@ -802,7 +835,7 @@
                         {config.layout === 'grid' && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
                             {displayItems.map((item, idx) => (
-                              <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
+                              <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                 {config.showImages && (item.video || item.image) ? (
                                   <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                     {item.video ? (
@@ -822,16 +855,16 @@
                                 ) : null}
                                 <div className="p-4 flex flex-col flex-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
-                                    <h3 className="font-bold text-sm leading-snug mb-2 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
+                                    <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                                       {cleanText(item.title)}
                                     </h3>
                                     {item.time && (
-                                      <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
+                                      <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                                         <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                                       </p>
                                     )}
                                     {config.showDescription && item.description && (
-                                      <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                      <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                         {cleanText(item.description)}
                                       </p>
                                     )}
