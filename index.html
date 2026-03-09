@@ -11,11 +11,6 @@
   <!-- Load FontAwesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Load Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
   <!-- Load React & ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -50,9 +45,6 @@
       const [config, setConfig] = useState({
         layout: 'list',
         theme: 'light',
-        bgColor: '#ffffff',
-        cardBgColor: '#f8fafc',
-        fontFamily: 'sans',
         accentColor: '#3b82f6',
         showImages: true,
         showDescription: true,
@@ -64,17 +56,11 @@
         carouselMode: false, 
       });
 
-      // =====================================================================
-      // IMPORTANT: Replace this URL with your actual Vercel API URL!
-      // =====================================================================
       const myBackendUrl = 'https://YOUR_VERCEL_PROJECT_URL.vercel.app/api/fetch'; 
 
-      // isSilent flag prevents UI flashing and carousel resets during background auto-refresh
-      const fetchFeedData = useCallback(async (targetUrl, isSilent = false) => {
-        if (!isSilent) {
-          setIsGenerating(true);
-          setErrorMsg('');
-        }
+      const fetchFeedData = useCallback(async (targetUrl) => {
+        setIsGenerating(true);
+        setErrorMsg('');
         
         try {
           let fetchUrl = targetUrl.trim();
@@ -85,31 +71,27 @@
               const parts = urlObj.pathname.split('/').filter(Boolean);
               if (parts.length === 1 && parts[0] !== 's') {
                 urlObj.pathname = '/s/' + parts[0];
+                fetchUrl = urlObj.toString();
               }
             }
-            // UNIVERSAL CACHE BUSTER: Forces Telegram and all Proxies to pull fresh live data
-            urlObj.searchParams.set('r', Date.now().toString());
-            fetchUrl = urlObj.toString();
           } catch(e) {
              console.warn("URL parsing issue:", e);
           }
 
           let htmlString = '';
-          const encodedTarget = encodeURIComponent(fetchUrl);
-          
           try {
-            const response = await fetch(`${myBackendUrl}?url=${encodedTarget}`, { cache: 'no-store' });
+            const response = await fetch(`${myBackendUrl}?url=${encodeURIComponent(fetchUrl)}`);
             if (!response.ok) throw new Error('Vercel backend failed');
             htmlString = await response.text();
           } catch (backendErr) {
-            if (!isSilent) console.warn('Backend failed, falling back to proxy waterfall...', backendErr);
+            console.warn('Backend failed, falling back to proxy waterfall...', backendErr);
             try {
-              const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodedTarget}`, { cache: 'no-store' });
+              const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(fetchUrl)}`);
               if (!res1.ok) throw new Error('CodeTabs proxy blocked the request');
               htmlString = await res1.text();
             } catch (err1) {
-              if (!isSilent) console.warn('CodeTabs failed, trying AllOrigins...', err1);
-              const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodedTarget}`, { cache: 'no-store' });
+              console.warn('CodeTabs failed, trying AllOrigins...', err1);
+              const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fetchUrl)}`);
               if (!resFallback.ok) throw new Error('All free proxies failed or rate-limited');
               const data = await resFallback.json();
               htmlString = data.contents;
@@ -140,6 +122,7 @@
                 let link = dateLink.getAttribute('href');
                 if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
 
+                // Extract Time
                 let timeStr = '';
                 const timeEl = dateLink.querySelector('time');
                 if (timeEl && timeEl.getAttribute('datetime')) {
@@ -149,38 +132,20 @@
                 let image = '';
                 let video = '';
                 
-                // Advanced robust video extraction for Telegram
-                const videoWrap = msg.querySelector('.tgme_widget_message_video_wrap');
-                if (videoWrap) {
-                  const videoEl = videoWrap.querySelector('video');
-                  if (videoEl) {
-                      let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src');
-                      if (!vSrc) {
-                          const sourceEl = videoEl.querySelector('source');
-                          if (sourceEl) vSrc = sourceEl.getAttribute('src') || sourceEl.getAttribute('data-src');
-                      }
-                      if (vSrc) {
-                          video = vSrc;
-                          if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
-                      }
-                  }
-                  // Fallback image for video if it exists
-                  const style = videoWrap.getAttribute('style');
-                  const match = style && style.match(/background-image:url\('([^']+)'\)/);
-                  if (match) image = match[1];
+                const videoEl = msg.querySelector('video');
+                if (videoEl && videoEl.getAttribute('src')) {
+                    video = videoEl.getAttribute('src');
+                    if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
                 }
 
-                // If no video was found, look for standard image
-                if (!video) {
-                  const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap');
-                  if (photoWrap) {
-                    const style = photoWrap.getAttribute('style');
-                    const match = style && style.match(/background-image:url\('([^']+)'\)/);
-                    if (match) image = match[1];
-                  } else {
-                     const imgEl = msg.querySelector('.tgme_widget_message_photo img');
-                     if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
-                  }
+                const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap');
+                if (photoWrap) {
+                  const style = photoWrap.getAttribute('style');
+                  const match = style && style.match(/background-image:url\('([^']+)'\)/);
+                  if (match) image = match[1];
+                } else {
+                   const imgEl = msg.querySelector('.tgme_widget_message_photo img');
+                   if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
                 }
                 
                 items.push({ id: Math.random().toString(), title, link, description, image, video, time: timeStr });
@@ -216,26 +181,22 @@
           }
           
           const uniqueItems = Array.from(new Map(items.map(item => [item.link, item])).values());
-          if (uniqueItems.length >= 1) {
-            setFeedItems(prevItems => {
-               // Only force carousel back to index 0 if the top post is actually brand new
-               if (!isSilent || prevItems.length === 0 || prevItems[0].link !== uniqueItems[0].link) {
-                   setCarouselIndex(0); 
-               }
-               return uniqueItems;
-            });
-            if (!isSilent) setInfoMsg(`Successfully extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
+          if (uniqueItems.length >= 2) {
+            setFeedItems(uniqueItems);
+            setInfoMsg(`Successfully extracted ${uniqueItems.length} items.`);
+          } else if (uniqueItems.length === 1) {
+            setFeedItems(uniqueItems);
+            setInfoMsg(`Successfully extracted 1 item.`);
           } else {
             throw new Error("Could not automatically identify feed items.");
           }
         } catch (err) {
-          if (!isSilent) {
-            console.error("Scraping error:", err);
-            setFeedItems(MOCK_DATA);
-            setErrorMsg(`Could not parse securely (${err.message}). Showing demo data instead.`);
-          }
+          console.error("Scraping error:", err);
+          setFeedItems(MOCK_DATA);
+          setErrorMsg(`Could not parse securely (${err.message}). Showing demo data instead.`);
         } finally {
-          if (!isSilent) setIsGenerating(false);
+          setIsGenerating(false);
+          setCarouselIndex(0); 
         }
       }, [myBackendUrl]);
 
@@ -243,13 +204,9 @@
         const params = new URLSearchParams(window.location.search);
         if (params.get('embed') === 'true') {
           setIsEmbedMode(true);
-          const urlTheme = params.get('theme') || 'light';
           setConfig({
             layout: params.get('layout') || 'list',
-            theme: urlTheme,
-            bgColor: params.get('bg') ? decodeURIComponent(params.get('bg')) : (urlTheme === 'dark' ? '#0f172a' : '#ffffff'),
-            cardBgColor: params.get('cardBg') ? decodeURIComponent(params.get('cardBg')) : (urlTheme === 'dark' ? '#1e293b' : '#f8fafc'),
-            fontFamily: params.get('font') || 'sans',
+            theme: params.get('theme') || 'light',
             accentColor: params.get('color') || '#3b82f6',
             showImages: params.get('imgs') !== 'false',
             showDescription: params.get('desc') !== 'false',
@@ -271,19 +228,17 @@
         }
       }, [fetchFeedData]);
 
-      // Automatic Background Polling Logic
       useEffect(() => {
-        // Now runs flawlessly in both UI Mode and Embed Mode
-        if (!url || url === 'demo' || config.refreshRate < 10) return;
+        if (!isEmbedMode || !url || url === 'demo' || config.refreshRate < 10) return;
         const intervalId = setInterval(() => {
-          fetchFeedData(url, true); // true = run silently in background
+          fetchFeedData(url);
         }, config.refreshRate * 1000); 
         return () => clearInterval(intervalId);
-      }, [url, config.refreshRate, fetchFeedData]);
+      }, [isEmbedMode, url, config.refreshRate, fetchFeedData]);
 
       const handleGenerate = (e) => {
         e.preventDefault();
-        if (url) fetchFeedData(url, false);
+        if (url) fetchFeedData(url);
       };
 
       const handleCopyCode = () => {
@@ -291,11 +246,11 @@
         const embedCode = `
 <!-- RSS Feed Widget -->
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" 
   width="100%" 
   height="${config.layout === 'ticker' ? '60' : '500'}" 
   frameborder="0" 
-  style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"
+  style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.theme === 'dark' ? '#0f172a' : '#ffffff'};"
 ></iframe>
         `.trim();
 
@@ -349,10 +304,6 @@
          return { background: `linear-gradient(to bottom right, ${config.theme === 'dark' ? '#1e293b' : '#f1f5f9'}, ${config.accentColor})` };
       }
 
-      const getWidgetFontFamily = () => {
-        return config.fontFamily === 'jetbrains' ? '"JetBrains Mono", monospace' : 'inherit';
-      }
-
       const renderLightbox = () => {
         if (!lightbox) return null;
         return (
@@ -360,9 +311,9 @@
             <button className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-[10000]" onClick={() => setLightbox(null)}>&times;</button>
             <div className="max-w-5xl w-full max-h-[90vh] flex items-center justify-center relative" onClick={(e) => e.stopPropagation()}>
               {lightbox.type === 'video' ? (
-                <video src={lightbox.url} referrerPolicy="no-referrer" controls autoPlay className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+                <video src={lightbox.url} controls autoPlay className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
               ) : (
-                <img src={lightbox.url} referrerPolicy="no-referrer" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+                <img src={lightbox.url} className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
               )}
             </div>
           </div>
@@ -371,9 +322,9 @@
 
       if (isEmbedMode) {
         return (
-          <div className={`w-full min-h-screen overflow-hidden ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.bgColor, fontFamily: getWidgetFontFamily() }}>
+          <div className={`w-full min-h-screen overflow-hidden ${config.theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-800'}`}>
             <style>{`
-              body { background-color: ${config.bgColor}; margin: 0; }
+              body { background-color: ${config.theme === 'dark' ? '#0f172a' : '#ffffff'}; margin: 0; }
               @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-100%); } }
               .animate-marquee {
                 animation: marquee ${tickerDuration}s linear infinite;
@@ -399,18 +350,18 @@
                     {displayItems.map((item, idx) => {
                       if (config.carouselMode && idx !== activeCarouselIndex) return null;
                       return (
-                        <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                        <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
                           
                           {config.showImages && (item.video || item.image) && (
                             <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                               {item.video ? (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                  <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                  <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                  <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                  <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-2xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               )}
@@ -423,12 +374,12 @@
                                 {cleanText(item.title)}
                               </h3>
                               {item.time && (
-                                <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
                                   <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                                 </p>
                               )}
                               {config.showDescription && item.description && (
-                                <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                   {cleanText(item.description)}
                                 </p>
                               )}
@@ -458,17 +409,17 @@
               {config.layout === 'grid' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 w-full">
                   {displayItems.map((item, idx) => (
-                    <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                    <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
                       {config.showImages && (item.video || item.image) ? (
                         <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                              <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                              <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           ) : (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                              <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                              <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-3xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           )}
@@ -482,12 +433,12 @@
                             {cleanText(item.title)}
                           </h3>
                           {item.time && (
-                            <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                            <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
                               <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                             </p>
                           )}
                           {config.showDescription && item.description && (
-                            <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                            <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                               {cleanText(item.description)}
                             </p>
                           )}
@@ -500,7 +451,7 @@
 
               {config.layout === 'ticker' && (
                 <div className="w-full h-full flex items-center overflow-hidden pause-on-hover relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-8 z-10" style={{ background: `linear-gradient(to right, ${config.bgColor}, transparent)` }}></div>
+                  <div className={`absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r ${config.theme === 'dark' ? 'from-slate-900 to-transparent' : 'from-white to-transparent'}`}></div>
                   
                   <div className="flex animate-marquee shrink-0 items-center">
                     {displayItems.concat(displayItems).map((item, idx) => {
@@ -529,7 +480,7 @@
                     })}
                   </div>
 
-                  <div className="absolute right-0 top-0 bottom-0 w-8 z-10" style={{ background: `linear-gradient(to left, ${config.bgColor}, transparent)` }}></div>
+                  <div className={`absolute right-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-l ${config.theme === 'dark' ? 'from-slate-900 to-transparent' : 'from-white to-transparent'}`}></div>
                 </div>
               )}
             </div>
@@ -614,16 +565,8 @@
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-sliders"></i> Theme</label>
                       <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setConfig({ ...config, theme: 'light', bgColor: '#ffffff', cardBgColor: '#f8fafc' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'light' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Light</button>
-                        <button onClick={() => setConfig({ ...config, theme: 'dark', bgColor: '#0f172a', cardBgColor: '#1e293b' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'dark' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Dark</button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-font"></i> Font Family</label>
-                      <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setConfig({ ...config, fontFamily: 'sans' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'sans' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>System Sans</button>
-                        <button onClick={() => setConfig({ ...config, fontFamily: 'jetbrains' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'jetbrains' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`} style={{fontFamily: '"JetBrains Mono", monospace'}}>JetBrains Mono</button>
+                        <button onClick={() => setConfig({ ...config, theme: 'light' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'light' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Light</button>
+                        <button onClick={() => setConfig({ ...config, theme: 'dark' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'dark' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Dark</button>
                       </div>
                     </div>
 
@@ -633,28 +576,6 @@
                         {['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#0f172a'].map((color) => (
                           <button key={color} onClick={() => setConfig({ ...config, accentColor: color })} className={`w-8 h-8 rounded-full border-2 transition-transform ${config.accentColor === color ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: color }} aria-label={`Select color ${color}`} />
                         ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                          <i className="fa-solid fa-fill-drip"></i> Main Background
-                        </label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                          <input type="text" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                          <i className="fa-solid fa-square"></i> Card Background
-                        </label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                          <input type="text" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
-                        </div>
                       </div>
                     </div>
 
@@ -751,7 +672,7 @@
                     <p className="text-sm text-gray-600 mb-3">Copy this code and paste it into Framer to embed the widget.</p>
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" width="100%" height="${config.layout === 'ticker' ? '60' : '500'}" frameborder="0" style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}" width="100%" height="${config.layout === 'ticker' ? '60' : '500'}" frameborder="0" style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.theme === 'dark' ? '#0f172a' : '#ffffff'};"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -786,7 +707,7 @@
                         <div className="ml-4 flex-1 bg-white border border-gray-200 rounded text-[10px] px-2 py-1 text-gray-400 font-mono flex items-center">your-website.com</div>
                       </div>
 
-                      <div className={`relative w-full overflow-hidden transition-colors duration-300 ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} ${config.layout !== 'ticker' ? 'h-[500px] preview-scroll overflow-y-auto p-4 sm:p-6' : 'h-16 flex items-center border-y'}`} style={{ borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', backgroundColor: config.bgColor, fontFamily: getWidgetFontFamily() }}>
+                      <div className={`relative w-full overflow-hidden transition-colors duration-300 ${config.theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-800'} ${config.layout !== 'ticker' ? 'h-[500px] preview-scroll overflow-y-auto p-4 sm:p-6' : 'h-16 flex items-center border-y'}`} style={{ borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9' }}>
                         
                         {config.layout === 'list' && (
                           <div className="relative w-full group/carousel">
@@ -794,18 +715,18 @@
                               {displayItems.map((item, idx) => {
                                 if (config.carouselMode && idx !== activeCarouselIndex) return null;
                                 return (
-                                  <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                  <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-gray-50/50 hover:bg-white'}`}>
                                     
                                     {config.showImages && (item.video || item.image) && (
                                       <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                                         {item.video ? (
                                           <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                            <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                            <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                           </div>
                                         ) : (
                                           <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                            <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-2xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                           </div>
                                         )}
@@ -818,12 +739,12 @@
                                           {cleanText(item.title)}
                                         </h3>
                                         {item.time && (
-                                          <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                          <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
                                             <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                                           </p>
                                         )}
                                         {config.showDescription && item.description && (
-                                          <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                          <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                             {cleanText(item.description)}
                                           </p>
                                         )}
@@ -853,17 +774,17 @@
                         {config.layout === 'grid' && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
                             {displayItems.map((item, idx) => (
-                              <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                              <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${config.theme === 'dark' ? 'border-slate-800 hover:border-slate-700 bg-slate-800/50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
                                 {config.showImages && (item.video || item.image) ? (
                                   <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                     {item.video ? (
                                       <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                        <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
+                                        <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                       </div>
                                     ) : (
                                       <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                        <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                        <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-3xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                       </div>
                                     )}
@@ -871,18 +792,18 @@
                                 ) : config.showImages && !item.image && !item.video ? (
                                    <div className="w-full h-24 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
                                 ) : null}
-                                <div className="p-3 flex flex-col flex-1">
+                                <div className="p-4 flex flex-col flex-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                                     <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                                       {cleanText(item.title)}
                                     </h3>
                                     {item.time && (
-                                      <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                      <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'text-slate-500' : 'text-gray-400'}`}>
                                         <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
                                       </p>
                                     )}
                                     {config.showDescription && item.description && (
-                                      <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                      <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                         {cleanText(item.description)}
                                       </p>
                                     )}
@@ -895,7 +816,7 @@
 
                         {config.layout === 'ticker' && (
                           <div className="w-full h-full flex items-center overflow-hidden pause-on-hover relative">
-                            <div className="absolute left-0 top-0 bottom-0 w-8 z-10" style={{ background: `linear-gradient(to right, ${config.bgColor}, transparent)` }}></div>
+                            <div className={`absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r ${config.theme === 'dark' ? 'from-slate-900 to-transparent' : 'from-white to-transparent'}`}></div>
                             
                             <div className="flex animate-marquee shrink-0 items-center">
                               {displayItems.concat(displayItems).map((item, idx) => {
@@ -924,7 +845,7 @@
                               })}
                             </div>
 
-                            <div className="absolute right-0 top-0 bottom-0 w-8 z-10" style={{ background: `linear-gradient(to left, ${config.bgColor}, transparent)` }}></div>
+                            <div className={`absolute right-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-l ${config.theme === 'dark' ? 'from-slate-900 to-transparent' : 'from-white to-transparent'}`}></div>
                           </div>
                         )}
                       </div>
