@@ -36,6 +36,35 @@
     ];
 
     // =====================================================================
+    // Helper: Force Autoplay Video Component to bypass strict browser policies
+    // =====================================================================
+    const AutoPlayVideo = ({ src, poster, className }) => {
+      const videoRef = useRef(null);
+      
+      useEffect(() => {
+        if (videoRef.current) {
+          videoRef.current.defaultMuted = true;
+          videoRef.current.muted = true;
+          videoRef.current.play().catch(e => console.log("Autoplay blocked by browser:", e));
+        }
+      }, [src]);
+
+      return (
+        <video 
+          ref={videoRef}
+          src={src} 
+          poster={poster}
+          referrerPolicy="no-referrer" 
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          className={className} 
+        />
+      );
+    };
+
+    // =====================================================================
     // Dynamic Endpoint Resolution (Prevents "Failed to fetch" errors)
     // Automatically uses relative paths if deployed, or requires absolute if local
     // =====================================================================
@@ -540,7 +569,7 @@
             <button className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-[10000]" onClick={() => setLightbox(null)}>&times;</button>
             <div className="w-full max-w-5xl flex items-center justify-center relative" onClick={(e) => e.stopPropagation()}>
               {lightbox.type === 'video' ? (
-                <video src={lightbox.url} referrerPolicy="no-referrer" controls autoPlay className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+                <video src={lightbox.url} referrerPolicy="no-referrer" controls autoPlay loop className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
               ) : lightbox.type === 'iframe' ? (
                 <iframe src={iframeUrl} className="w-full h-[80vh] max-w-2xl bg-transparent rounded-lg shadow-2xl border-0" allow="autoplay; fullscreen" allowFullScreen></iframe>
               ) : (
@@ -592,7 +621,7 @@
                             <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                               {item.video ? (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                  <video src={item.video} poster={item.image} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                  <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : item.isVideo ? (
@@ -611,7 +640,7 @@
 
                           <div className="flex flex-col justify-center flex-1 min-w-0">
                             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-                              <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
+                              <h3 className="font-semibold text-base leading-tight mb-1 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                 {cleanText(item.title)}
                               </h3>
                               {item.time && (
@@ -655,7 +684,7 @@
                         <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                              <video src={item.video} poster={item.image} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                              <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           ) : item.isVideo ? (
@@ -1046,13 +1075,13 @@
                                         <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                                           {item.video ? (
                                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                              <video src={item.video} poster={item.image} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                              <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
                                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
                                               {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />}
-                                              <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                              <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : (
                                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
@@ -1109,7 +1138,7 @@
                                     <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                       {item.video ? (
                                         <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                          <video src={item.video} poster={item.image} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                          <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                           <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                         </div>
                                       ) : item.isVideo ? (
