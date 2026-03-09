@@ -45,7 +45,7 @@
       const [config, setConfig] = useState({
         layout: 'list',
         theme: 'light',
-        bgColor: '#ffffff', // Custom background color
+        bgColor: '#ffffff', 
         accentColor: '#3b82f6',
         showImages: true,
         showDescription: true,
@@ -57,11 +57,17 @@
         carouselMode: false, 
       });
 
+      // =====================================================================
+      // IMPORTANT: Replace this URL with your actual Vercel API URL!
+      // =====================================================================
       const myBackendUrl = 'https://YOUR_VERCEL_PROJECT_URL.vercel.app/api/fetch'; 
 
-      const fetchFeedData = useCallback(async (targetUrl) => {
-        setIsGenerating(true);
-        setErrorMsg('');
+      // isSilent flag prevents UI flashing and carousel resets during background auto-refresh
+      const fetchFeedData = useCallback(async (targetUrl, isSilent = false) => {
+        if (!isSilent) {
+          setIsGenerating(true);
+          setErrorMsg('');
+        }
         
         try {
           let fetchUrl = targetUrl.trim();
@@ -79,20 +85,25 @@
              console.warn("URL parsing issue:", e);
           }
 
+          // Force cache bust on silent background refreshes
+          const cacheBuster = isSilent ? `&cb=${Date.now()}` : '';
+
           let htmlString = '';
           try {
-            const response = await fetch(`${myBackendUrl}?url=${encodeURIComponent(fetchUrl)}`);
+            const response = await fetch(`${myBackendUrl}?url=${encodeURIComponent(fetchUrl)}${cacheBuster}`);
             if (!response.ok) throw new Error('Vercel backend failed');
             htmlString = await response.text();
           } catch (backendErr) {
-            console.warn('Backend failed, falling back to proxy waterfall...', backendErr);
+            if (!isSilent) console.warn('Backend failed, falling back to proxy waterfall...', backendErr);
             try {
-              const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(fetchUrl)}`);
+              const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(fetchUrl)}${cacheBuster}`);
               if (!res1.ok) throw new Error('CodeTabs proxy blocked the request');
               htmlString = await res1.text();
             } catch (err1) {
-              console.warn('CodeTabs failed, trying AllOrigins...', err1);
-              const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fetchUrl)}`);
+              if (!isSilent) console.warn('CodeTabs failed, trying AllOrigins...', err1);
+              // AllOrigins requires cache buster in the target URL to bypass its rigid cache
+              const bustedFetchUrl = isSilent ? fetchUrl + (fetchUrl.includes('?') ? '&' : '?') + 'cb=' + Date.now() : fetchUrl;
+              const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(bustedFetchUrl)}`);
               if (!resFallback.ok) throw new Error('All free proxies failed or rate-limited');
               const data = await resFallback.json();
               htmlString = data.contents;
@@ -123,7 +134,6 @@
                 let link = dateLink.getAttribute('href');
                 if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
 
-                // Extract Time
                 let timeStr = '';
                 const timeEl = dateLink.querySelector('time');
                 if (timeEl && timeEl.getAttribute('datetime')) {
@@ -182,22 +192,26 @@
           }
           
           const uniqueItems = Array.from(new Map(items.map(item => [item.link, item])).values());
-          if (uniqueItems.length >= 2) {
-            setFeedItems(uniqueItems);
-            setInfoMsg(`Successfully extracted ${uniqueItems.length} items.`);
-          } else if (uniqueItems.length === 1) {
-            setFeedItems(uniqueItems);
-            setInfoMsg(`Successfully extracted 1 item.`);
+          if (uniqueItems.length >= 1) {
+            setFeedItems(prevItems => {
+               // Only force carousel back to index 0 if the top post is actually new
+               if (!isSilent || prevItems.length === 0 || prevItems[0].link !== uniqueItems[0].link) {
+                   setCarouselIndex(0); 
+               }
+               return uniqueItems;
+            });
+            if (!isSilent) setInfoMsg(`Successfully extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
           } else {
             throw new Error("Could not automatically identify feed items.");
           }
         } catch (err) {
-          console.error("Scraping error:", err);
-          setFeedItems(MOCK_DATA);
-          setErrorMsg(`Could not parse securely (${err.message}). Showing demo data instead.`);
+          if (!isSilent) {
+            console.error("Scraping error:", err);
+            setFeedItems(MOCK_DATA);
+            setErrorMsg(`Could not parse securely (${err.message}). Showing demo data instead.`);
+          }
         } finally {
-          setIsGenerating(false);
-          setCarouselIndex(0); 
+          if (!isSilent) setIsGenerating(false);
         }
       }, [myBackendUrl]);
 
@@ -231,17 +245,19 @@
         }
       }, [fetchFeedData]);
 
+      // Automatic Background Polling Logic
       useEffect(() => {
-        if (!isEmbedMode || !url || url === 'demo' || config.refreshRate < 10) return;
+        // Now runs in both UI Mode and Embed Mode
+        if (!url || url === 'demo' || config.refreshRate < 10) return;
         const intervalId = setInterval(() => {
-          fetchFeedData(url);
+          fetchFeedData(url, true); // true = run silently in background
         }, config.refreshRate * 1000); 
         return () => clearInterval(intervalId);
-      }, [isEmbedMode, url, config.refreshRate, fetchFeedData]);
+      }, [url, config.refreshRate, fetchFeedData]);
 
       const handleGenerate = (e) => {
         e.preventDefault();
-        if (url) fetchFeedData(url);
+        if (url) fetchFeedData(url, false);
       };
 
       const handleCopyCode = () => {
