@@ -81,8 +81,8 @@
       // =====================================================================
       // IMPORTANT: Replace this URL with your actual Vercel API URL!
       // =====================================================================
-      const myBackendUrl = 'https://rss-chi-five.vercel.app/api/fetch'; 
-      const myTtsUrl = 'https://rss-chi-five.vercel.app/api/tts';
+      const myBackendUrl = 'https://YOUR_VERCEL_PROJECT_URL.vercel.app/api/fetch'; 
+      const myTtsUrl = 'https://YOUR_VERCEL_PROJECT_URL.vercel.app/api/tts';
 
       const toggleMute = useCallback((e) => {
         if (e) {
@@ -627,7 +627,7 @@
                   </div>
 
                   {config.carouselMode && displayItems.length > 1 && (
-                    <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto">
+                    <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
                       <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
@@ -1080,7 +1080,7 @@
                             </div>
 
                             {config.carouselMode && displayItems.length > 1 && (
-                              <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto">
+                              <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
                                 <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                   <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                 </button>
