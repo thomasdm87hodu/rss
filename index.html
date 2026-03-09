@@ -39,6 +39,7 @@
       const [isEmbedMode, setIsEmbedMode] = useState(false);
       const [url, setUrl] = useState('');
       const [isGenerating, setIsGenerating] = useState(false);
+      const [isPreviewing, setIsPreviewing] = useState(false);
       const [feedItems, setFeedItems] = useState([]);
       const [errorMsg, setErrorMsg] = useState('');
       const [infoMsg, setInfoMsg] = useState('');
@@ -79,13 +80,13 @@
       const myTtsUrl = 'https://rss-chi-five.vercel.app/api/tts';
 
       // Text-To-Speech Function
-      const speakText = useCallback(async (text) => {
+      const speakText = useCallback(async (text, forceApi = false) => {
         if (!text) return;
         
         const voice = configRef.current.openAIVoice || 'alloy';
 
         // Use Secure Vercel Backend for OpenAI TTS
-        if (configRef.current.autoRead) {
+        if (configRef.current.autoRead || forceApi) {
           try {
             const response = await fetch(myTtsUrl, {
               method: 'POST',
@@ -130,6 +131,27 @@
           window.speechSynthesis.speak(utterance);
         }
       }, []);
+
+      const handlePreviewVoice = async (e) => {
+        e.preventDefault();
+        if (isPreviewing) return;
+        
+        setIsPreviewing(true);
+        let textToRead = "This is a preview of the selected voice.";
+        
+        if (feedItems.length > 0) {
+          let title = feedItems[0].title;
+          // Clean the text before reading
+          if (config.removeText) {
+             const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+             title = title.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
+          }
+          textToRead = "Latest Update: " + title;
+        }
+        
+        await speakText(textToRead, true);
+        setIsPreviewing(false);
+      };
 
       // isSilent flag prevents UI flashing and carousel resets during background auto-refresh
       const fetchFeedData = useCallback(async (targetUrl, isSilent = false) => {
@@ -881,21 +903,29 @@
                             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                               <i className="fa-solid fa-user-astronaut"></i> OpenAI Voice
                             </label>
-                            <select 
-                              value={config.openAIVoice} 
-                              onChange={(e) => setConfig({ ...config, openAIVoice: e.target.value })}
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all"
-                            >
-                              <option value="alloy">Alloy (Neutral)</option>
-                              <option value="echo">Echo (Male)</option>
-                              <option value="fable">Fable (British Male)</option>
-                              <option value="nova">Nova (Female)</option>
-                              <option value="onyx">Onyx (Deep Male)</option>
-                              <option value="shimmer">Shimmer (Soft Female)</option>
-                              <option value="marin">Marin (Natural/Recommended)</option>
-                              <option value="cedar">Cedar (Natural/Recommended)</option>
-                            </select>
-                            <p className="text-[11px] text-green-600 mt-2"><i className="fa-solid fa-shield-halved"></i> API Key is securely hidden in your Vercel backend.</p>
+                            <div className="flex gap-2">
+                              <select 
+                                value={config.openAIVoice} 
+                                onChange={(e) => setConfig({ ...config, openAIVoice: e.target.value })}
+                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all"
+                              >
+                                <option value="alloy">Alloy (Neutral)</option>
+                                <option value="echo">Echo (Male)</option>
+                                <option value="fable">Fable (British Male)</option>
+                                <option value="nova">Nova (Female)</option>
+                                <option value="onyx">Onyx (Deep Male)</option>
+                                <option value="shimmer">Shimmer (Soft Female)</option>
+                              </select>
+                              <button 
+                                onClick={handlePreviewVoice}
+                                disabled={isPreviewing}
+                                className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                title="Preview Voice"
+                              >
+                                {isPreviewing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high"></i>}
+                              </button>
+                            </div>
+                            <p className="text-[11px] text-green-600 mt-2"><i className="fa-solid fa-shield-halved"></i> Audio generated securely via your Vercel backend.</p>
                           </div>
                         </div>
                       )}
