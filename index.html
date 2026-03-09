@@ -63,8 +63,8 @@
         refreshRate: 60, 
         carouselMode: false, 
         autoRead: false,
-        openAIApiKey: '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', 
-        openAIVoice: 'alloy', 
+        openAIApiKey: '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', // NEW: OpenAI API Key
+        openAIVoice: 'alloy', // NEW: OpenAI Voice Selection
       });
 
       // Use a ref to keep the config accessible inside the interval callback without triggering re-renders
@@ -80,10 +80,7 @@
 
       // Text-To-Speech Function
       const speakText = useCallback(async (text) => {
-        if (!text) return;
-        
-        // Securely trim the API key to remove hidden spaces/newlines that cause "Failed to fetch"
-        const apiKey = configRef.current.openAIApiKey ? configRef.current.openAIApiKey.trim() : '';
+        const apiKey = configRef.current.openAIApiKey;
         const voice = configRef.current.openAIVoice || 'alloy';
 
         // Use OpenAI TTS if API key is provided
@@ -102,22 +99,15 @@
               })
             });
 
-            if (!response.ok) {
-              const errData = await response.text();
-              throw new Error(`API Error ${response.status}: ${errData}`);
-            }
+            if (!response.ok) throw new Error('OpenAI TTS failed');
             
             const blob = await response.blob();
             const audioUrl = URL.createObjectURL(blob);
             const audio = new Audio(audioUrl);
-            
-            // Explicitly handle playback promises to catch Autoplay blocks
-            await audio.play().catch(e => {
-                console.warn("OpenAI Audio generated, but browser blocked Auto-play. User must interact with the document first.", e);
-            });
-            return; // Exit after playing OpenAI audio successfully
+            audio.play();
+            return; // Exit after playing OpenAI audio
           } catch (error) {
-            console.error('OpenAI TTS Error (Check API Key, AdBlockers, or Browser Shields). Falling back to local voice:', error);
+            console.error('OpenAI TTS Error, falling back to browser voice:', error);
           }
         }
 
@@ -335,7 +325,7 @@
                        textToRead = textToRead.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
                    }
                    
-                   speakText("Latest Update: " + textToRead);
+                   speakText("New post: " + textToRead);
                }
 
                return uniqueItems;
@@ -909,11 +899,9 @@
                               <option value="alloy">Alloy (Neutral)</option>
                               <option value="echo">Echo (Male)</option>
                               <option value="fable">Fable (British Male)</option>
-                              <option value="nova">Nova (Female)</option>
                               <option value="onyx">Onyx (Deep Male)</option>
+                              <option value="nova">Nova (Female)</option>
                               <option value="shimmer">Shimmer (Soft Female)</option>
-                              <option value="marin">Marin (Natural/Recommended)</option>
-                              <option value="cedar">Cedar (Natural/Recommended)</option>
                             </select>
                           </div>
                         </div>
@@ -934,7 +922,7 @@
                     <p className="text-sm text-gray-600 mb-3">Copy this code and paste it into Framer to embed the widget.</p>
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiKey=${encodeURIComponent(config.openAIApiKey)}&openaiVoice=${encodeURIComponent(config.openAIVoice)}" width="100%" height="${config.layout === 'ticker' ? '60' : '500'}" frameborder="0" allow="autoplay" style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}" width="100%" height="${config.layout === 'ticker' ? '60' : '500'}" frameborder="0" allow="autoplay" style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
