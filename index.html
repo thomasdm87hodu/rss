@@ -35,6 +35,15 @@
       { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 1440 * 60000).toISOString() },
     ];
 
+    // =====================================================================
+    // Dynamic Endpoint Resolution (Prevents "Failed to fetch" errors)
+    // Automatically uses relative paths if deployed, or requires absolute if local
+    // =====================================================================
+    const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
+    const hostUrl = isLocalFile ? 'https://rss-chi-five.vercel.app' : ''; 
+    const myBackendUrl = `${hostUrl}/api/fetch`; 
+    const myTtsUrl = `${hostUrl}/api/tts`;
+
     function App() {
       const [isEmbedMode, setIsEmbedMode] = useState(false);
       const [url, setUrl] = useState('');
@@ -77,12 +86,6 @@
       useEffect(() => {
         configRef.current = config;
       }, [config]);
-
-      // =====================================================================
-      // IMPORTANT: Replace this URL with your actual Vercel API URL!
-      // =====================================================================
-      const myBackendUrl = 'https://rss-chi-five.vercel.app/api/fetch'; 
-      const myTtsUrl = 'https://rss-chi-five.vercel.app/api/tts';
 
       const toggleMute = useCallback((e) => {
         if (e) {
@@ -137,7 +140,9 @@
             });
 
             if (!response.ok) {
-              throw new Error(`TTS API Error ${response.status}`);
+              const errData = await response.text();
+              console.error("Vercel Backend Error:", response.status, errData, "Make sure OPENAI_API_KEY is set in Vercel Environment Variables!");
+              throw new Error(`TTS API Error ${response.status}: ${errData}`);
             }
             
             const blob = await response.blob();
@@ -406,7 +411,7 @@
         } finally {
           if (!isSilent) setIsGenerating(false);
         }
-      }, [myBackendUrl, speakText]);
+      }, [speakText]);
 
       useEffect(() => {
         const params = new URLSearchParams(window.location.search);
