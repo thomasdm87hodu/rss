@@ -48,6 +48,11 @@
       const [carouselIndex, setCarouselIndex] = useState(0);
       const [lightbox, setLightbox] = useState(null);
 
+      // TTS Mute State
+      const [isGlobalMuted, setIsGlobalMuted] = useState(false);
+      const isGlobalMutedRef = useRef(false);
+      const currentAudioRef = useRef(null);
+
       const [config, setConfig] = useState({
         layout: 'list',
         theme: 'light',
@@ -79,10 +84,42 @@
       const myBackendUrl = 'https://rss-chi-five.vercel.app/api/fetch'; 
       const myTtsUrl = 'https://rss-chi-five.vercel.app/api/tts';
 
+      const toggleMute = useCallback((e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        isGlobalMutedRef.current = !isGlobalMutedRef.current;
+        setIsGlobalMuted(isGlobalMutedRef.current);
+        
+        // Immediately stop any currently playing audio
+        if (isGlobalMutedRef.current) {
+          if (currentAudioRef.current) {
+            currentAudioRef.current.pause();
+            currentAudioRef.current = null;
+          }
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+          }
+        }
+      }, []);
+
       // Text-To-Speech Function
       const speakText = useCallback(async (text, forceApi = false) => {
         if (!text) return;
         
+        // Prevent reading if muted (unless forcing via Preview button)
+        if (isGlobalMutedRef.current && !forceApi) return;
+        
+        // Stop any currently playing audio before starting a new one
+        if (currentAudioRef.current) {
+          currentAudioRef.current.pause();
+          currentAudioRef.current = null;
+        }
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+
         const voice = configRef.current.openAIVoice || 'alloy';
 
         // Use Secure Vercel Backend for OpenAI TTS
@@ -106,6 +143,7 @@
             const blob = await response.blob();
             const audioUrl = URL.createObjectURL(blob);
             const audio = new Audio(audioUrl);
+            currentAudioRef.current = audio;
             
             // Explicitly handle playback promises to catch Autoplay blocks
             await audio.play().catch(e => {
@@ -119,7 +157,6 @@
 
         // Fallback to Native Browser TTS
         if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel(); // Stop any currently playing audio
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.rate = 1.0;
           
@@ -531,6 +568,17 @@
                 .group\\/carousel:hover .carousel-nav-container { opacity: 1; pointer-events: auto; }
               }
             `}</style>
+
+            {/* Mute Button Toggle in Embed */}
+            {config.autoRead && (
+              <button
+                onClick={toggleMute}
+                className={`fixed bottom-4 right-4 z-[9999] flex items-center justify-center w-10 h-10 rounded-full shadow-lg backdrop-blur-sm transition-all hover:scale-105 ${isGlobalMuted ? 'bg-red-500/90 text-white' : 'bg-slate-800/80 text-white dark:bg-white/80 dark:text-slate-900'}`}
+                title={isGlobalMuted ? "Unmute Voice" : "Mute Voice"}
+              >
+                <i className={`fa-solid ${isGlobalMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
+              </button>
+            )}
 
             <div className={`w-full h-screen ${config.layout !== 'ticker' ? 'embed-scroll overflow-y-auto p-4' : 'flex items-center'}`}>
               
@@ -982,6 +1030,17 @@
 
                       <div className={`relative w-full overflow-hidden transition-colors duration-300 ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} ${config.layout !== 'ticker' ? 'h-[500px] preview-scroll overflow-y-auto p-4 sm:p-6' : 'h-16 flex items-center border-y'}`} style={{ borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', backgroundColor: config.bgColor, fontFamily: getWidgetFontFamily() }}>
                         
+                        {/* Preview App Mute Overlay */}
+                        {config.autoRead && (
+                          <button
+                            onClick={toggleMute}
+                            className={`absolute bottom-4 right-4 z-[50] flex items-center justify-center w-10 h-10 rounded-full shadow-lg backdrop-blur-sm transition-all hover:scale-105 ${isGlobalMuted ? 'bg-red-500/90 text-white' : 'bg-slate-800/80 text-white dark:bg-white/80 dark:text-slate-900'}`}
+                            title={isGlobalMuted ? "Unmute Voice" : "Mute Voice"}
+                          >
+                            <i className={`fa-solid ${isGlobalMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
+                          </button>
+                        )}
+
                         {config.layout === 'list' && (
                           <div className="relative w-full group/carousel">
                             <div className="space-y-4 pb-2">
