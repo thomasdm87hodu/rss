@@ -63,8 +63,8 @@
         refreshRate: 60, 
         carouselMode: false, 
         autoRead: false,
-        openAIApiKey: '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', // NEW: OpenAI API Key
-        openAIVoice: 'alloy', // NEW: OpenAI Voice Selection
+        openAIApiKey: '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', 
+        openAIVoice: 'alloy', 
       });
 
       // Use a ref to keep the config accessible inside the interval callback without triggering re-renders
@@ -80,7 +80,10 @@
 
       // Text-To-Speech Function
       const speakText = useCallback(async (text) => {
-        const apiKey = configRef.current.openAIApiKey;
+        if (!text) return;
+        
+        // Securely trim the API key to remove hidden spaces/newlines that cause "Failed to fetch"
+        const apiKey = configRef.current.openAIApiKey ? configRef.current.openAIApiKey.trim() : '';
         const voice = configRef.current.openAIVoice || 'alloy';
 
         // Use OpenAI TTS if API key is provided
@@ -99,15 +102,22 @@
               })
             });
 
-            if (!response.ok) throw new Error('OpenAI TTS failed');
+            if (!response.ok) {
+              const errData = await response.text();
+              throw new Error(`API Error ${response.status}: ${errData}`);
+            }
             
             const blob = await response.blob();
             const audioUrl = URL.createObjectURL(blob);
             const audio = new Audio(audioUrl);
-            audio.play();
-            return; // Exit after playing OpenAI audio
+            
+            // Explicitly handle playback promises to catch Autoplay blocks
+            await audio.play().catch(e => {
+                console.warn("OpenAI Audio generated, but browser blocked Auto-play. User must interact with the document first.", e);
+            });
+            return; // Exit after playing OpenAI audio successfully
           } catch (error) {
-            console.error('OpenAI TTS Error, falling back to browser voice:', error);
+            console.error('OpenAI TTS Error (Check API Key, AdBlockers, or Browser Shields). Falling back to local voice:', error);
           }
         }
 
