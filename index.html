@@ -149,10 +149,18 @@
                 let image = '';
                 let video = '';
                 
+                // Advanced robust video extraction
                 const videoEl = msg.querySelector('video');
-                if (videoEl && videoEl.getAttribute('src')) {
-                    video = videoEl.getAttribute('src');
-                    if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
+                if (videoEl) {
+                    let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src');
+                    if (!vSrc) {
+                        const sourceEl = videoEl.querySelector('source');
+                        if (sourceEl) vSrc = sourceEl.getAttribute('src') || sourceEl.getAttribute('data-src');
+                    }
+                    if (vSrc) {
+                        video = vSrc;
+                        if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
+                    }
                 }
 
                 const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap');
@@ -342,9 +350,9 @@
             <button className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-[10000]" onClick={() => setLightbox(null)}>&times;</button>
             <div className="max-w-5xl w-full max-h-[90vh] flex items-center justify-center relative" onClick={(e) => e.stopPropagation()}>
               {lightbox.type === 'video' ? (
-                <video src={lightbox.url} controls autoPlay className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+                <video src={lightbox.url} referrerPolicy="no-referrer" controls autoPlay className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
               ) : (
-                <img src={lightbox.url} className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+                <img src={lightbox.url} referrerPolicy="no-referrer" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
               )}
             </div>
           </div>
@@ -387,12 +395,12 @@
                             <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                               {item.video ? (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                  <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                  <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                  <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                  <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-2xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               )}
@@ -445,12 +453,12 @@
                         <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                              <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                              <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           ) : (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                              <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                              <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-3xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           )}
@@ -782,12 +790,12 @@
                                       <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                                         {item.video ? (
                                           <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                            <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
+                                            <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                           </div>
                                         ) : (
                                           <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                            <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-2xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                           </div>
                                         )}
@@ -840,12 +848,12 @@
                                   <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                     {item.video ? (
                                       <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                        <video src={item.video} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
+                                        <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                       </div>
                                     ) : (
                                       <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                        <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                        <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-3xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                       </div>
                                     )}
