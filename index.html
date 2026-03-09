@@ -149,28 +149,38 @@
                 let image = '';
                 let video = '';
                 
-                // Advanced robust video extraction
-                const videoEl = msg.querySelector('video');
-                if (videoEl) {
-                    let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src');
-                    if (!vSrc) {
-                        const sourceEl = videoEl.querySelector('source');
-                        if (sourceEl) vSrc = sourceEl.getAttribute('src') || sourceEl.getAttribute('data-src');
-                    }
-                    if (vSrc) {
-                        video = vSrc;
-                        if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
-                    }
-                }
-
-                const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap');
-                if (photoWrap) {
-                  const style = photoWrap.getAttribute('style');
+                // Advanced robust video extraction for Telegram
+                const videoWrap = msg.querySelector('.tgme_widget_message_video_wrap');
+                if (videoWrap) {
+                  const videoEl = videoWrap.querySelector('video');
+                  if (videoEl) {
+                      let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src');
+                      if (!vSrc) {
+                          const sourceEl = videoEl.querySelector('source');
+                          if (sourceEl) vSrc = sourceEl.getAttribute('src') || sourceEl.getAttribute('data-src');
+                      }
+                      if (vSrc) {
+                          video = vSrc;
+                          if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
+                      }
+                  }
+                  // Fallback image for video if it exists
+                  const style = videoWrap.getAttribute('style');
                   const match = style && style.match(/background-image:url\('([^']+)'\)/);
                   if (match) image = match[1];
-                } else {
-                   const imgEl = msg.querySelector('.tgme_widget_message_photo img');
-                   if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
+                }
+
+                // If no video was found, look for standard image
+                if (!video) {
+                  const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap');
+                  if (photoWrap) {
+                    const style = photoWrap.getAttribute('style');
+                    const match = style && style.match(/background-image:url\('([^']+)'\)/);
+                    if (match) image = match[1];
+                  } else {
+                     const imgEl = msg.querySelector('.tgme_widget_message_photo img');
+                     if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
+                  }
                 }
                 
                 items.push({ id: Math.random().toString(), title, link, description, image, video, time: timeStr });
@@ -790,7 +800,7 @@
                                       <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                                         {item.video ? (
                                           <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                            <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover/media:scale-105 transition-transform duration-500" />
+                                            <video src={item.video} referrerPolicy="no-referrer" autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                           </div>
                                         ) : (
@@ -861,7 +871,7 @@
                                 ) : config.showImages && !item.image && !item.video ? (
                                    <div className="w-full h-24 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
                                 ) : null}
-                                <div className="p-4 flex flex-col flex-1">
+                                <div className="p-3 flex flex-col flex-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                                     <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                                       {cleanText(item.title)}
