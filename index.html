@@ -287,9 +287,12 @@
               const dateLink = msg.querySelector('.tgme_widget_message_date');
 
               if (textEl && dateLink) {
-                const description = textEl.innerText.trim();
-                let title = description.replace(/\n/g, ' ').trim();
+                const rawText = textEl.innerText.trim();
+                let title = rawText.replace(/\n/g, ' ').trim();
                 if (!title) title = 'Telegram Update';
+                
+                // Set description to empty for Telegram so it does not render identical text twice
+                let description = '';
 
                 let link = dateLink.getAttribute('href');
                 if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
@@ -640,7 +643,7 @@
 
                           <div className="flex flex-col justify-center flex-1 min-w-0">
                             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-                              <h3 className="font-semibold text-base leading-tight mb-1 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
+                              <h3 className="font-semibold text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                 {cleanText(item.title)}
                               </h3>
                               {item.time && (
@@ -1094,7 +1097,7 @@
 
                                       <div className="flex flex-col justify-center flex-1 min-w-0">
                                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-                                          <h3 className="font-semibold text-lg sm:text-base leading-tight mb-1 truncate group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
+                                          <h3 className="font-semibold text-lg sm:text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                             {cleanText(item.title)}
                                           </h3>
                                           {item.time && (
