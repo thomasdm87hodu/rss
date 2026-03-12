@@ -679,6 +679,74 @@
                 </div>
               )}
 
+              {/* NEW FEED LAYOUT */}
+              {config.layout === 'feed' && (
+                <div className="relative w-full group/carousel">
+                  <div className="space-y-6 pb-2">
+                    {displayItems.map((item, idx) => {
+                      if (config.carouselMode && idx !== activeCarouselIndex) return null;
+                      return (
+                        <div key={idx} className={`group flex flex-col gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                          
+                          {config.showImages && (item.video || item.image || item.isVideo) && (
+                            <div className="w-full rounded-lg overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center">
+                              {item.video ? (
+                                <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                  <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-auto max-h-[60vh] object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto" />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              ) : item.isVideo ? (
+                                <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                  {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />}
+                                  <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              ) : (
+                                <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
+                                  <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex flex-col justify-center flex-1 min-w-0 px-1">
+                            <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
+                              <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
+                                {cleanText(item.title)}
+                              </h3>
+                              {item.time && (
+                                <p className={`text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                  <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
+                                </p>
+                              )}
+                              {config.showDescription && item.description && (
+                                <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                  {cleanText(item.description)}
+                                </p>
+                              )}
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {config.carouselMode && displayItems.length > 1 && (
+                    <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                        <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                      </button>
+                      <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                        {activeCarouselIndex + 1} / {displayItems.length}
+                      </span>
+                      <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                        Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {config.layout === 'grid' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 w-full">
                   {displayItems.map((item, idx) => (
@@ -825,10 +893,10 @@
                   <div className="p-5 space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-border-all"></i> Layout Style</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[{ id: 'list', icon: 'fa-solid fa-list', label: 'List' }, { id: 'grid', icon: 'fa-solid fa-border-all', label: 'Grid' }, { id: 'ticker', icon: 'fa-solid fa-ellipsis', label: 'Ticker' }].map((type) => (
-                          <button key={type.id} onClick={() => setConfig({ ...config, layout: type.id })} className={`flex flex-col items-center justify-center gap-1 py-3 px-2 border rounded-lg transition-all ${config.layout === type.id ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                            <i className={`${type.icon} text-lg`}></i><span className="text-xs font-medium">{type.label}</span>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[{ id: 'list', icon: 'fa-solid fa-list', label: 'List' }, { id: 'grid', icon: 'fa-solid fa-border-all', label: 'Grid' }, { id: 'feed', icon: 'fa-solid fa-image', label: 'Feed' }, { id: 'ticker', icon: 'fa-solid fa-ellipsis', label: 'Ticker' }].map((type) => (
+                          <button key={type.id} onClick={() => setConfig({ ...config, layout: type.id })} className={`flex flex-col items-center justify-center gap-1 py-3 px-1 border rounded-lg transition-all ${config.layout === type.id ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                            <i className={`${type.icon} text-lg`}></i><span className="text-[11px] font-medium">{type.label}</span>
                           </button>
                         ))}
                       </div>
@@ -911,7 +979,7 @@
                           </div>
                         </label>
                         
-                        {config.layout === 'list' && (
+                        {(config.layout === 'list' || config.layout === 'feed') && (
                           <label className="flex items-center justify-between cursor-pointer">
                             <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-clapperboard"></i> Carousel Mode</span>
                             <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.carouselMode ? 'bg-blue-600' : 'bg-gray-300'}`}>
@@ -1066,6 +1134,7 @@
                         )}
 
                         <div className={`w-full h-full ${config.layout !== 'ticker' ? 'preview-scroll overflow-y-auto p-4 sm:p-6' : 'flex items-center border-y'}`}>
+                          
                           {config.layout === 'list' && (
                             <div className="relative w-full group/carousel">
                               <div className="space-y-4 pb-2">
@@ -1107,6 +1176,74 @@
                                           )}
                                           {config.showDescription && item.description && (
                                             <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                              {cleanText(item.description)}
+                                            </p>
+                                          )}
+                                        </a>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {config.carouselMode && displayItems.length > 1 && (
+                                <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
+                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                    <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                                  </button>
+                                  <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    {activeCarouselIndex + 1} / {displayItems.length}
+                                  </span>
+                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                    Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* NEW FEED LAYOUT */}
+                          {config.layout === 'feed' && (
+                            <div className="relative w-full group/carousel">
+                              <div className="space-y-6 pb-2">
+                                {displayItems.map((item, idx) => {
+                                  if (config.carouselMode && idx !== activeCarouselIndex) return null;
+                                  return (
+                                    <div key={idx} className={`group flex flex-col gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                      
+                                      {config.showImages && (item.video || item.image || item.isVideo) && (
+                                        <div className="w-full rounded-lg overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center">
+                                          {item.video ? (
+                                            <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                              <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-auto max-h-[60vh] object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto" />
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                            </div>
+                                          ) : item.isVideo ? (
+                                            <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                              {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />}
+                                              <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                            </div>
+                                          ) : (
+                                            <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
+                                              <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      <div className="flex flex-col justify-center flex-1 min-w-0 px-1">
+                                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
+                                          <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
+                                            {cleanText(item.title)}
+                                          </h3>
+                                          {item.time && (
+                                            <p className={`text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                              <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
+                                            </p>
+                                          )}
+                                          {config.showDescription && item.description && (
+                                            <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                               {cleanText(item.description)}
                                             </p>
                                           )}
