@@ -42,11 +42,35 @@
       const videoRef = useRef(null);
       
       useEffect(() => {
-        if (videoRef.current) {
-          videoRef.current.defaultMuted = true;
-          videoRef.current.muted = true;
-          videoRef.current.play().catch(e => console.log("Autoplay blocked by browser:", e));
-        }
+        const video = videoRef.current;
+        if (!video) return;
+
+        // Force muted attributes directly onto the DOM node
+        video.muted = true;
+        video.defaultMuted = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('muted', '');
+
+        const tryPlay = () => {
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.log("Autoplay prevented:", error);
+            });
+          }
+        };
+
+        // Try playing immediately
+        tryPlay();
+
+        // Also try playing the exact moment the video data is ready
+        video.addEventListener('canplay', tryPlay);
+        video.addEventListener('loadedmetadata', tryPlay);
+
+        return () => {
+          video.removeEventListener('canplay', tryPlay);
+          video.removeEventListener('loadedmetadata', tryPlay);
+        };
       }, [src]);
 
       return (
