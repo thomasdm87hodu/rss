@@ -93,7 +93,7 @@
     // Automatically uses relative paths if deployed, or requires absolute if local
     // =====================================================================
     const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
-    const hostUrl = isLocalFile ? 'https://rss-chi-five.vercel.app' : ''; 
+    const hostUrl = isLocalFile ? 'https://YOUR_VERCEL_PROJECT_URL.vercel.app' : ''; 
     const myBackendUrl = `${hostUrl}/api/fetch`; 
     const myTtsUrl = `${hostUrl}/api/tts`;
 
@@ -736,19 +736,27 @@
                         <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                           
                           {config.showImages && (item.video || item.image || item.isVideo) && (
-                            <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
+                            <div className={`w-full overflow-hidden bg-black/90 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
+                              
+                              {/* Cinematic Background Blur */}
+                              {item.image && (
+                                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                                  <img src={item.image} className="w-full h-full object-cover filter blur-2xl grayscale opacity-40 scale-125" aria-hidden="true" onError={(e) => e.target.style.display = 'none'} />
+                                </div>
+                              )}
+
                               {item.video ? (
-                                <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
                                   <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : item.isVideo ? (
-                                <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
                                   {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
                                   <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : (
-                                <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
                                   <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
@@ -1286,19 +1294,27 @@
                                     <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                       
                                       {config.showImages && (item.video || item.image || item.isVideo) && (
-                                        <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
+                                        <div className={`w-full overflow-hidden bg-black/90 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
+                                          
+                                          {/* Cinematic Background Blur */}
+                                          {item.image && (
+                                            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                                              <img src={item.image} className="w-full h-full object-cover filter blur-2xl grayscale opacity-40 scale-125" aria-hidden="true" onError={(e) => e.target.style.display = 'none'} />
+                                            </div>
+                                          )}
+
                                           {item.video ? (
-                                            <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                            <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
                                               <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
-                                            <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                            <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
                                               {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
                                               <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : (
-                                            <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
+                                            <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
                                               <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
