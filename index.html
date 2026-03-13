@@ -699,35 +699,35 @@
 
               {/* FEED LAYOUT */}
               {config.layout === 'feed' && (
-                <div className={`relative w-full group/carousel ${config.seamless ? 'h-full' : ''}`}>
-                  <div className={`${config.seamless ? 'space-y-0 pb-0' : 'space-y-6 pb-2'}`}>
+                <div className={`relative w-full group/carousel ${config.seamless ? 'h-full flex flex-col' : ''}`}>
+                  <div className={`${config.seamless ? 'space-y-0 pb-0 flex-1 h-full' : 'space-y-6 pb-2'}`}>
                     {displayItems.map((item, idx) => {
                       if (config.carouselMode && idx !== activeCarouselIndex) return null;
                       return (
-                        <div key={idx} className={`group flex flex-col ${config.seamless ? '' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                        <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                           
                           {config.showImages && (item.video || item.image || item.isVideo) && (
-                            <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? '' : 'rounded-lg'}`}>
+                            <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
                               {item.video ? (
-                                <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                  <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-auto max-h-[60vh] object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto" />
+                                <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                  <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : item.isVideo ? (
-                                <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
-                                  {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />}
+                                <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                  {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
                                   <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : (
-                                <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                  <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />
+                                <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
+                                  <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               )}
                             </div>
                           )}
 
-                          <div className={`flex flex-col justify-center flex-1 min-w-0 ${config.seamless ? 'p-4' : 'px-1'}`}>
+                          <div className={`flex flex-col justify-center min-w-0 ${config.seamless ? 'p-4 shrink-0' : 'flex-1 px-1'}`}>
                             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                               <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
                                 {cleanText(item.title)}
@@ -750,7 +750,7 @@
                   </div>
 
                   {config.carouselMode && displayItems.length > 1 && (
-                    <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto absolute bottom-0 left-0 right-0 z-10">
+                    <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
                       <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
@@ -1245,35 +1245,35 @@
 
                           {/* FEED LAYOUT */}
                           {config.layout === 'feed' && (
-                            <div className={`relative w-full group/carousel ${config.seamless ? 'h-full' : ''}`}>
-                              <div className={`${config.seamless ? 'space-y-0 pb-0' : 'space-y-6 pb-2'}`}>
+                            <div className={`relative w-full group/carousel ${config.seamless ? 'h-full flex flex-col' : ''}`}>
+                              <div className={`${config.seamless ? 'space-y-0 pb-0 flex-1 h-full' : 'space-y-6 pb-2'}`}>
                                 {displayItems.map((item, idx) => {
                                   if (config.carouselMode && idx !== activeCarouselIndex) return null;
                                   return (
-                                    <div key={idx} className={`group flex flex-col ${config.seamless ? '' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                    <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                       
                                       {config.showImages && (item.video || item.image || item.isVideo) && (
-                                        <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? '' : 'rounded-lg'}`}>
+                                        <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
                                           {item.video ? (
-                                            <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                              <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-auto max-h-[60vh] object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto" />
+                                            <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                              <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
-                                            <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
-                                              {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />}
+                                            <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                              {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
                                               <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : (
-                                            <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                              <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-auto max-h-[60vh] object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto" onError={(e) => e.target.style.display = 'none'} />
+                                            <div className="w-full h-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
+                                              <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           )}
                                         </div>
                                       )}
 
-                                      <div className={`flex flex-col justify-center flex-1 min-w-0 ${config.seamless ? 'p-4' : 'px-1'}`}>
+                                      <div className={`flex flex-col justify-center min-w-0 ${config.seamless ? 'p-4 shrink-0' : 'flex-1 px-1'}`}>
                                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                                           <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
                                             {cleanText(item.title)}
