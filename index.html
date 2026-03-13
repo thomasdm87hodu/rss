@@ -612,9 +612,14 @@
                 ${config.tickerSpeed === 0 ? 'animation-play-state: paused !important;' : ''}
               }
               .pause-on-hover:hover .animate-marquee { animation-play-state: paused; }
+              ${(config.seamless || config.carouselMode) ? `
+              .embed-scroll::-webkit-scrollbar { display: none; width: 0px; }
+              .embed-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+              ` : `
               .embed-scroll::-webkit-scrollbar { width: 6px; }
               .embed-scroll::-webkit-scrollbar-track { background: transparent; }
               .embed-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+              `}
             `}</style>
 
             {/* Mute Button Toggle in Embed */}
@@ -863,6 +868,10 @@
             .preview-scroll::-webkit-scrollbar { width: 6px; }
             .preview-scroll::-webkit-scrollbar-track { background: transparent; }
             .preview-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+            ${(config.seamless || config.carouselMode) ? `
+            .preview-scroll::-webkit-scrollbar { display: none; width: 0px; }
+            .preview-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+            ` : ''}
           `}</style>
 
           <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
