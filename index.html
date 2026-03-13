@@ -86,6 +86,10 @@
       const [carouselIndex, setCarouselIndex] = useState(0);
       const [lightbox, setLightbox] = useState(null);
 
+      // Export Widget Dimensions
+      const [exportWidth, setExportWidth] = useState('100%');
+      const [exportHeight, setExportHeight] = useState('500px');
+
       // TTS Mute State
       const [isGlobalMuted, setIsGlobalMuted] = useState(false);
       const isGlobalMutedRef = useRef(false);
@@ -108,6 +112,7 @@
         carouselMode: false, 
         autoRead: false,
         openAIVoice: 'alloy', 
+        seamless: false, // New Seamless Mode Property
       });
 
       // Use a ref to keep the config accessible inside the interval callback without triggering re-renders
@@ -115,6 +120,12 @@
       useEffect(() => {
         configRef.current = config;
       }, [config]);
+
+      // Smart Defaults for Height Based on Layout
+      useEffect(() => {
+        if (config.layout === 'ticker') setExportHeight('60px');
+        else if (exportHeight === '60px') setExportHeight('500px');
+      }, [config.layout]);
 
       const toggleMute = useCallback((e) => {
         if (e) {
@@ -467,6 +478,7 @@
             carouselMode: params.get('carousel') === 'true',
             autoRead: params.get('autoRead') === 'true',
             openAIVoice: params.get('openaiVoice') || 'alloy',
+            seamless: params.get('seamless') === 'true',
           });
 
           const targetUrl = params.get('url');
@@ -495,14 +507,20 @@
 
       const handleCopyCode = () => {
         const baseUrl = window.location.href.split('?')[0];
+        
+        // Define inline styles based on whether Seamless is toggled on or off
+        const iframeStyles = config.seamless 
+          ? `border: none; background-color: transparent;` 
+          : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`;
+
         const embedCode = `
 <!-- RSS Feed Widget -->
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}" 
-  width="100%" 
-  height="${config.layout === 'ticker' ? '60' : '500'}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
+  width="${exportWidth}" 
+  height="${exportHeight}" 
   frameborder="0" 
-  style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"
+  style="${iframeStyles}"
   allow="autoplay"
 ></iframe>
         `.trim();
@@ -585,9 +603,9 @@
 
       if (isEmbedMode) {
         return (
-          <div className={`relative w-full h-screen overflow-hidden group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.bgColor, fontFamily: getWidgetFontFamily() }}>
+          <div className={`relative w-full h-screen overflow-hidden group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, fontFamily: getWidgetFontFamily() }}>
             <style>{`
-              body { background-color: ${config.bgColor}; margin: 0; overflow: hidden; }
+              body { background-color: ${config.seamless ? 'transparent' : config.bgColor}; margin: 0; overflow: hidden; }
               @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-100%); } }
               .animate-marquee {
                 animation: marquee ${tickerDuration}s linear infinite;
@@ -610,7 +628,7 @@
               </button>
             )}
 
-            <div className={`w-full h-full ${config.layout !== 'ticker' ? 'embed-scroll overflow-y-auto p-4' : 'flex items-center'}`}>
+            <div className={`w-full h-full ${config.layout !== 'ticker' ? `embed-scroll overflow-y-auto ${config.seamless ? 'p-0' : 'p-4'}` : 'flex items-center'}`}>
               
               {config.layout === 'list' && (
                 <div className="relative w-full group/carousel">
@@ -618,7 +636,7 @@
                     {displayItems.map((item, idx) => {
                       if (config.carouselMode && idx !== activeCarouselIndex) return null;
                       return (
-                        <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                        <div key={idx} className={`group flex flex-col sm:flex-row ${config.seamless ? 'p-4 gap-4' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                           
                           {config.showImages && (item.video || item.image || item.isVideo) && (
                             <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
@@ -630,7 +648,7 @@
                               ) : item.isVideo ? (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
                                   {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />}
-                                  <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                  <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
@@ -679,17 +697,17 @@
                 </div>
               )}
 
-              {/* NEW FEED LAYOUT */}
+              {/* FEED LAYOUT */}
               {config.layout === 'feed' && (
-                <div className="relative w-full group/carousel">
-                  <div className="space-y-6 pb-2">
+                <div className={`relative w-full group/carousel ${config.seamless ? 'h-full' : ''}`}>
+                  <div className={`${config.seamless ? 'space-y-0 pb-0' : 'space-y-6 pb-2'}`}>
                     {displayItems.map((item, idx) => {
                       if (config.carouselMode && idx !== activeCarouselIndex) return null;
                       return (
-                        <div key={idx} className={`group flex flex-col gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                        <div key={idx} className={`group flex flex-col ${config.seamless ? '' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                           
                           {config.showImages && (item.video || item.image || item.isVideo) && (
-                            <div className="w-full rounded-lg overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center">
+                            <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? '' : 'rounded-lg'}`}>
                               {item.video ? (
                                 <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
                                   <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-auto max-h-[60vh] object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto" />
@@ -709,7 +727,7 @@
                             </div>
                           )}
 
-                          <div className="flex flex-col justify-center flex-1 min-w-0 px-1">
+                          <div className={`flex flex-col justify-center flex-1 min-w-0 ${config.seamless ? 'p-4' : 'px-1'}`}>
                             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                               <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
                                 {cleanText(item.title)}
@@ -732,14 +750,14 @@
                   </div>
 
                   {config.carouselMode && displayItems.length > 1 && (
-                    <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                    <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto absolute bottom-0 left-0 right-0 z-10">
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
-                      <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                      <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
                         {activeCarouselIndex + 1} / {displayItems.length}
                       </span>
-                      <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                      <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
                       </button>
                     </div>
@@ -750,7 +768,7 @@
               {config.layout === 'grid' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 w-full">
                   {displayItems.map((item, idx) => (
-                    <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                    <div key={idx} className={`group flex flex-col h-full ${config.seamless ? '' : 'rounded-xl border'} overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                       {config.showImages && (item.video || item.image || item.isVideo) ? (
                         <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
@@ -773,7 +791,7 @@
                       ) : config.showImages && !item.image && !item.video && !item.isVideo ? (
                          <div className="w-full h-16 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
                       ) : null}
-                      <div className="p-3 flex flex-col flex-1">
+                      <div className="p-4 flex flex-col flex-1">
                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                           <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                             {cleanText(item.title)}
@@ -964,7 +982,16 @@
 
                     {config.layout !== 'ticker' && (
                       <div className="space-y-3 pt-2 border-t border-gray-100">
-                        <label className="flex items-center justify-between cursor-pointer">
+                        {/* SEAMLESS EDGE-TO-EDGE TOGGLE */}
+                        <label className="flex items-center justify-between cursor-pointer pb-2">
+                          <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-expand"></i> Seamless (Edge-to-Edge)</span>
+                          <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.seamless ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                            <input type="checkbox" className="sr-only" checked={config.seamless} onChange={(e) => setConfig({ ...config, seamless: e.target.checked })} />
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.seamless ? 'translate-x-4' : 'translate-x-1'}`} />
+                          </div>
+                        </label>
+
+                        <label className="flex items-center justify-between cursor-pointer border-t border-gray-100 pt-2">
                           <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-regular fa-image"></i> Show Images</span>
                           <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.showImages ? 'bg-blue-600' : 'bg-gray-300'}`}>
                             <input type="checkbox" className="sr-only" checked={config.showImages} onChange={(e) => setConfig({ ...config, showImages: e.target.checked })} />
@@ -1082,10 +1109,24 @@
                     </div>
                   </div>
                   <div className="p-5">
+                    
+                    {/* WIDGET SIZING CONTROLS */}
+                    <div className="flex gap-3 mb-4">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Widget Width</label>
+                        <input type="text" value={exportWidth} onChange={(e) => setExportWidth(e.target.value)} placeholder="100%" className="w-full px-2 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Widget Height</label>
+                        <input type="text" value={exportHeight} onChange={(e) => setExportHeight(e.target.value)} placeholder="500px" className="w-full px-2 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" />
+                      </div>
+                    </div>
+
                     <p className="text-sm text-gray-600 mb-3">Copy this code and paste it into Framer to embed the widget.</p>
+                    
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}" width="100%" height="${config.layout === 'ticker' ? '60' : '500'}" frameborder="0" allow="autoplay" style="border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -1120,7 +1161,7 @@
                         <div className="ml-4 flex-1 bg-white border border-gray-200 rounded text-[10px] px-2 py-1 text-gray-400 font-mono flex items-center">your-website.com</div>
                       </div>
 
-                      <div className={`relative w-full h-[500px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', backgroundColor: config.bgColor, fontFamily: getWidgetFontFamily() }}>
+                      <div className={`relative w-full h-[500px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
                         
                         {/* Preview App Mute Overlay */}
                         {config.autoRead && (
@@ -1133,7 +1174,7 @@
                           </button>
                         )}
 
-                        <div className={`w-full h-full ${config.layout !== 'ticker' ? 'preview-scroll overflow-y-auto p-4 sm:p-6' : 'flex items-center border-y'}`}>
+                        <div className={`w-full h-full ${config.layout !== 'ticker' ? `preview-scroll overflow-y-auto ${config.seamless ? 'p-0' : 'p-4 sm:p-6'}` : 'flex items-center border-y'}`}>
                           
                           {config.layout === 'list' && (
                             <div className="relative w-full group/carousel">
@@ -1141,7 +1182,7 @@
                                 {displayItems.map((item, idx) => {
                                   if (config.carouselMode && idx !== activeCarouselIndex) return null;
                                   return (
-                                    <div key={idx} className={`group flex flex-col sm:flex-row gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                    <div key={idx} className={`group flex flex-col sm:flex-row ${config.seamless ? 'gap-4 p-4' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                       
                                       {config.showImages && (item.video || item.image || item.isVideo) && (
                                         <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
@@ -1202,17 +1243,17 @@
                             </div>
                           )}
 
-                          {/* NEW FEED LAYOUT */}
+                          {/* FEED LAYOUT */}
                           {config.layout === 'feed' && (
-                            <div className="relative w-full group/carousel">
-                              <div className="space-y-6 pb-2">
+                            <div className={`relative w-full group/carousel ${config.seamless ? 'h-full' : ''}`}>
+                              <div className={`${config.seamless ? 'space-y-0 pb-0' : 'space-y-6 pb-2'}`}>
                                 {displayItems.map((item, idx) => {
                                   if (config.carouselMode && idx !== activeCarouselIndex) return null;
                                   return (
-                                    <div key={idx} className={`group flex flex-col gap-4 p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                    <div key={idx} className={`group flex flex-col ${config.seamless ? '' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                       
                                       {config.showImages && (item.video || item.image || item.isVideo) && (
-                                        <div className="w-full rounded-lg overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center">
+                                        <div className={`w-full overflow-hidden bg-black/5 dark:bg-black/20 relative flex items-center justify-center ${config.seamless ? '' : 'rounded-lg'}`}>
                                           {item.video ? (
                                             <div className="w-full relative cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
                                               <AutoPlayVideo src={item.video} poster={item.image} className="w-full h-auto max-h-[60vh] object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto" />
@@ -1232,7 +1273,7 @@
                                         </div>
                                       )}
 
-                                      <div className="flex flex-col justify-center flex-1 min-w-0 px-1">
+                                      <div className={`flex flex-col justify-center flex-1 min-w-0 ${config.seamless ? 'p-4' : 'px-1'}`}>
                                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                                           <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
                                             {cleanText(item.title)}
@@ -1255,14 +1296,14 @@
                               </div>
 
                               {config.carouselMode && displayItems.length > 1 && (
-                                <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
+                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                   </button>
-                                  <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                  <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
                                     {activeCarouselIndex + 1} / {displayItems.length}
                                   </span>
-                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
                                   </button>
                                 </div>
@@ -1273,7 +1314,7 @@
                           {config.layout === 'grid' && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
                               {displayItems.map((item, idx) => (
-                                <div key={idx} className={`group flex flex-col h-full rounded-xl border overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                <div key={idx} className={`group flex flex-col h-full ${config.seamless ? '' : 'rounded-xl border'} overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                   {config.showImages && (item.video || item.image || item.isVideo) ? (
                                     <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                       {item.video ? (
@@ -1296,7 +1337,7 @@
                                   ) : config.showImages && !item.image && !item.video && !item.isVideo ? (
                                      <div className="w-full h-24 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
                                   ) : null}
-                                  <div className="p-3 flex flex-col flex-1">
+                                  <div className="p-4 flex flex-col flex-1">
                                     <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                                       <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                                         {cleanText(item.title)}
