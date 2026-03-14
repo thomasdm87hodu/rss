@@ -30,9 +30,9 @@
     const { useState, useEffect, useCallback, useRef } = React;
 
     const MOCK_DATA = [
-      { id: '1', title: 'The Future of AI in Web Development', link: '#', description: 'Discover how artificial intelligence is shaping the way we build and design websites in 2026 and beyond.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 5 * 60000).toISOString() },
-      { id: '2', title: '10 Essential Tailwind CSS Patterns', link: '#', description: 'A comprehensive guide to reusable utility-class patterns that will speed up your workflow and reduce CSS bloat.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 120 * 60000).toISOString() },
-      { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 1440 * 60000).toISOString() },
+      { id: '1', title: 'The Future of AI in Web Development', link: '#', description: 'Discover how artificial intelligence is shaping the way we build and design websites in 2026 and beyond.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 5 * 60000).toISOString(), source: 'TechInsider' },
+      { id: '2', title: '10 Essential Tailwind CSS Patterns', link: '#', description: 'A comprehensive guide to reusable utility-class patterns that will speed up your workflow and reduce CSS bloat.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 120 * 60000).toISOString(), source: 'DesignWeekly' },
+      { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 1440 * 60000).toISOString(), source: 'CodeDaily' },
     ];
 
     // =====================================================================
@@ -90,7 +90,6 @@
 
     // =====================================================================
     // Dynamic Endpoint Resolution (Prevents "Failed to fetch" errors)
-    // Automatically uses relative paths if deployed, or requires absolute if local
     // =====================================================================
     const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
     const hostUrl = isLocalFile ? 'https://YOUR_VERCEL_PROJECT_URL.vercel.app' : ''; 
@@ -114,9 +113,12 @@
       const [exportWidth, setExportWidth] = useState('100%');
       const [exportHeight, setExportHeight] = useState('500px');
 
-      // TTS Mute State
+      // TTS Mute State & Queue System
       const [isGlobalMuted, setIsGlobalMuted] = useState(false);
       const isGlobalMutedRef = useRef(false);
+      
+      const audioQueueRef = useRef([]); // The queue holds pending audio texts
+      const isSpeakingRef = useRef(false); // Lock to prevent overlapping audio
       const currentAudioRef = useRef(null);
 
       const [config, setConfig] = useState({
@@ -132,20 +134,19 @@
         tickerSpeed: 50,
         tickerCharLimit: 80,
         removeText: '', 
+        excludeKeywords: '', // NEW: Spam filter keywords
         refreshRate: 60, 
         carouselMode: false, 
         autoRead: false,
         openAIVoice: 'alloy', 
-        seamless: false, // New Seamless Mode Property
+        seamless: false, 
       });
 
-      // Use a ref to keep the config accessible inside the interval callback without triggering re-renders
       const configRef = useRef(config);
       useEffect(() => {
         configRef.current = config;
       }, [config]);
 
-      // Smart Defaults for Height Based on Layout
       useEffect(() => {
         if (config.layout === 'ticker') setExportHeight('60px');
         else if (exportHeight === '60px') setExportHeight('500px');
@@ -159,8 +160,11 @@
         isGlobalMutedRef.current = !isGlobalMutedRef.current;
         setIsGlobalMuted(isGlobalMutedRef.current);
         
-        // Immediately stop any currently playing audio
+        // Immediately stop any currently playing audio and clear queue
         if (isGlobalMutedRef.current) {
+          audioQueueRef.current = []; // Clear the queue so it doesn't resume later
+          isSpeakingRef.current = false;
+          
           if (currentAudioRef.current) {
             currentAudioRef.current.pause();
             currentAudioRef.current = null;
@@ -171,83 +175,98 @@
         }
       }, []);
 
-      // Text-To-Speech Function
-      const speakText = useCallback(async (text, forceApi = false) => {
-        if (!text) return;
-        
-        // Prevent reading if muted (unless forcing via Preview button)
-        if (isGlobalMutedRef.current && !forceApi) return;
-        
-        // Stop any currently playing audio before starting a new one
-        if (currentAudioRef.current) {
-          currentAudioRef.current.pause();
-          currentAudioRef.current = null;
-        }
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-        }
+      // =====================================================================
+      // Audio Queue Processor
+      // =====================================================================
+      const processAudioQueue = useCallback(async () => {
+        // If muted, already speaking, or queue is empty, do nothing
+        if (isGlobalMutedRef.current || isSpeakingRef.current || audioQueueRef.current.length === 0) return;
 
+        isSpeakingRef.current = true; // Lock the queue
+        const { text, forceApi } = audioQueueRef.current.shift(); // Get the next item
         const voice = configRef.current.openAIVoice || 'alloy';
 
-        // Use Secure Vercel Backend for OpenAI TTS
         if (configRef.current.autoRead || forceApi) {
           try {
             const response = await fetch(myTtsUrl, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                text: text,
-                voice: voice,
-              })
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text, voice })
             });
 
-            if (!response.ok) {
-              const errData = await response.text();
-              console.error("Vercel Backend Error:", response.status, errData, "Make sure OPENAI_API_KEY is set in Vercel Environment Variables!");
-              throw new Error(`TTS API Error ${response.status}: ${errData}`);
-            }
+            if (!response.ok) throw new Error(`TTS API Error ${response.status}`);
             
             const blob = await response.blob();
             const audioUrl = URL.createObjectURL(blob);
             const audio = new Audio(audioUrl);
             currentAudioRef.current = audio;
             
-            // Explicitly handle playback promises to catch Autoplay blocks
+            // Unlocks the queue when this specific audio finishes
+            audio.onended = () => {
+              isSpeakingRef.current = false;
+              currentAudioRef.current = null;
+              processAudioQueue(); // Trigger next item in line
+            };
+            audio.onerror = () => {
+              isSpeakingRef.current = false;
+              currentAudioRef.current = null;
+              processAudioQueue(); 
+            };
+
             await audio.play().catch(e => {
-                console.warn("OpenAI Audio generated, but browser blocked Auto-play. User must interact with the document first.", e);
+              console.warn("Autoplay blocked. User interaction required.", e);
+              isSpeakingRef.current = false;
+              currentAudioRef.current = null;
+              processAudioQueue(); 
             });
-            return; // Exit after playing OpenAI audio successfully
+            return;
           } catch (error) {
             console.error('Secure TTS Error. Falling back to local voice:', error);
           }
         }
 
-        // Fallback to Native Browser TTS
+        // Native Browser Fallback (if OpenAI fails or isn't used)
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.rate = 1.0;
-          
-          // Try to select a natural sounding English voice if available
           const voices = window.speechSynthesis.getVoices();
           const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Samantha') || v.lang === 'en-US' || v.lang === 'en-GB');
           if (preferredVoice) utterance.voice = preferredVoice;
           
+          utterance.onend = () => {
+             isSpeakingRef.current = false;
+             processAudioQueue();
+          };
+          utterance.onerror = () => {
+             isSpeakingRef.current = false;
+             processAudioQueue();
+          };
+          
           window.speechSynthesis.speak(utterance);
+        } else {
+          isSpeakingRef.current = false;
+          processAudioQueue();
         }
-      }, []);
+      }, [myTtsUrl]);
+
+      // Public API to speak text: Just pushes to queue!
+      const speakText = useCallback((text, forceApi = false) => {
+        if (!text || (isGlobalMutedRef.current && !forceApi)) return;
+        audioQueueRef.current.push({ text, forceApi });
+        processAudioQueue();
+      }, [processAudioQueue]);
 
       const handlePreviewVoice = async (e) => {
         e.preventDefault();
         if (isPreviewing) return;
-        
         setIsPreviewing(true);
-        let textToRead = "This is a preview of the selected voice.";
         
+        // Temporarily clear queue to prioritize the preview
+        audioQueueRef.current = [];
+        
+        let textToRead = "This is a preview of the selected voice.";
         if (feedItems.length > 0) {
           let title = feedItems[0].title;
-          // Clean the text before reading
           if (config.removeText) {
              const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
              title = title.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
@@ -255,225 +274,233 @@
           textToRead = "Latest Update: " + title;
         }
         
-        await speakText(textToRead, true);
-        setIsPreviewing(false);
+        speakText(textToRead, true);
+        
+        // Simple timeout to reset button state
+        setTimeout(() => setIsPreviewing(false), 2000); 
       };
 
-      // isSilent flag prevents UI flashing and carousel resets during background auto-refresh
-      const fetchFeedData = useCallback(async (targetUrl, isSilent = false) => {
+      // =====================================================================
+      // Multi-Source Fetch Logic
+      // =====================================================================
+      const fetchFeedData = useCallback(async (targetUrlsStr, isSilent = false) => {
         if (!isSilent) {
           setIsGenerating(true);
           setErrorMsg('');
         }
         
         try {
-          let fetchUrl = targetUrl.trim();
-          
-          try {
-            const urlObj = new URL(fetchUrl);
-            if (urlObj.hostname === 't.me' || urlObj.hostname === 'www.t.me') {
-              const parts = urlObj.pathname.split('/').filter(Boolean);
-              if (parts.length === 1 && parts[0] !== 's') {
-                urlObj.pathname = '/s/' + parts[0];
-              }
-            }
-            // UNIVERSAL CACHE BUSTER: Forces Telegram and all Proxies to pull fresh live data
-            urlObj.searchParams.set('r', Date.now().toString());
-            fetchUrl = urlObj.toString();
-          } catch(e) {
-             console.warn("URL parsing issue:", e);
-          }
+          // Split input string by newlines or commas into an array of URLs
+          const rawUrlList = targetUrlsStr.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+          if (rawUrlList.length === 0) throw new Error("No valid URLs provided.");
 
-          let htmlString = '';
-          const encodedTarget = encodeURIComponent(fetchUrl);
-          
-          try {
-            const response = await fetch(`${myBackendUrl}?url=${encodedTarget}`, { cache: 'no-store' });
-            if (!response.ok) throw new Error('Vercel backend failed');
-            htmlString = await response.text();
-          } catch (backendErr) {
-            if (!isSilent) console.warn('Backend failed, falling back to proxy waterfall...', backendErr);
+          // Helper function to process a single URL
+          const fetchSingleUrl = async (rawUrl) => {
+            let fetchUrl = rawUrl;
             try {
+              const urlObj = new URL(fetchUrl);
+              if (urlObj.hostname === 't.me' || urlObj.hostname === 'www.t.me') {
+                const parts = urlObj.pathname.split('/').filter(Boolean);
+                if (parts.length === 1 && parts[0] !== 's') {
+                  urlObj.pathname = '/s/' + parts[0];
+                }
+              }
+              urlObj.searchParams.set('r', Date.now().toString()); // Cache Buster
+              fetchUrl = urlObj.toString();
+            } catch(e) {}
+
+            let htmlString = '';
+            const encodedTarget = encodeURIComponent(fetchUrl);
+            
+            try {
+              const response = await fetch(`${myBackendUrl}?url=${encodedTarget}`, { cache: 'no-store' });
+              if (!response.ok) throw new Error('Backend failed');
+              htmlString = await response.text();
+            } catch (backendErr) {
               const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodedTarget}`, { cache: 'no-store' });
-              if (!res1.ok) throw new Error('CodeTabs proxy blocked the request');
-              htmlString = await res1.text();
-            } catch (err1) {
-              if (!isSilent) console.warn('CodeTabs failed, trying AllOrigins...', err1);
-              const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodedTarget}`, { cache: 'no-store' });
-              if (!resFallback.ok) throw new Error('All free proxies failed or rate-limited');
-              const data = await resFallback.json();
-              htmlString = data.contents;
+              if (res1.ok) htmlString = await res1.text();
+              else {
+                const resFallback = await fetch(`https://api.allorigins.win/get?url=${encodedTarget}`, { cache: 'no-store' });
+                const data = await resFallback.json();
+                htmlString = data.contents;
+              }
             }
+
+            if (!htmlString || !htmlString.includes('<html')) throw new Error("Invalid HTML");
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const baseUrl = new URL(fetchUrl).origin;
+            let items = [];
+            
+            if (fetchUrl.includes('t.me/s/')) {
+              const messages = doc.querySelectorAll('.tgme_widget_message');
+              messages.forEach((msg) => {
+                const textEl = msg.querySelector('.tgme_widget_message_text');
+                const dateLink = msg.querySelector('.tgme_widget_message_date');
+                
+                // Extract Channel Source Name
+                let sourceName = '';
+                const authorEl = msg.querySelector('.tgme_widget_message_owner_name span') || msg.querySelector('.tgme_widget_message_owner_name');
+                if (authorEl) {
+                    sourceName = authorEl.innerText.trim();
+                } else {
+                    const urlParts = new URL(fetchUrl).pathname.split('/').filter(Boolean);
+                    sourceName = urlParts[urlParts.length - 1] || 'Telegram';
+                }
+
+                if (textEl && dateLink) {
+                  let title = textEl.innerText.trim().replace(/\n/g, ' ');
+                  if (!title) title = 'Telegram Update';
+                  
+                  // Set description to empty for Telegram so it does not render identical text twice
+                  let description = '';
+
+                  let link = dateLink.getAttribute('href');
+                  if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
+
+                  let timeStr = '';
+                  const timeEl = dateLink.querySelector('time');
+                  if (timeEl && timeEl.getAttribute('datetime')) timeStr = timeEl.getAttribute('datetime');
+
+                  let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
+                  
+                  let videoEl = msg.querySelector('video') || msg.querySelector('.tgme_widget_message_video_wrap video');
+                  if (videoEl) {
+                      let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
+                      if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
+                  }
+                  
+                  if (video) isVideo = true;
+                  else if (msg.querySelector('.tgme_widget_message_video_player, .tgme_widget_message_video_wrap, .play_icon')) {
+                      isVideo = true;
+                      try {
+                          const u = new URL(link); u.searchParams.set('embed', '1'); u.searchParams.set('autoplay', '1');
+                          embedUrl = u.toString();
+                      } catch(e) {}
+                  }
+
+                  const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap, .tgme_widget_message_video_thumb');
+                  if (photoWrap) {
+                    const match = photoWrap.getAttribute('style')?.match(/background-image:\s*url\(['"]?([^'"]+)['"]?\)/i);
+                    if (match) image = match[1];
+                  } 
+                  if (!image) {
+                     const imgEl = msg.querySelector('.tgme_widget_message_photo img');
+                     if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
+                  }
+                  
+                  items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
+                }
+              });
+            } else {
+              // Generic HTML parsing
+              let sourceName = new URL(fetchUrl).hostname.replace('www.', '');
+              const headings = doc.querySelectorAll('h1, h2, h3, h4');
+              headings.forEach((heading) => {
+                const linkEl = heading.querySelector('a') || (heading.tagName === 'A' ? heading : null);
+                if (linkEl && linkEl.innerText.trim().length > 15) {
+                  const title = linkEl.innerText.trim();
+                  let link = linkEl.getAttribute('href');
+                  if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
+                  
+                  let description = '';
+                  let sibling = heading.nextElementSibling;
+                  if (sibling && sibling.tagName === 'P') description = sibling.innerText.trim().substring(0, 160) + '...';
+
+                  let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
+                  const parent = heading.parentElement;
+                  if (parent) {
+                     const videoEl = parent.querySelector('video');
+                     if (videoEl) {
+                         let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
+                         if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
+                     }
+                     if (!video) {
+                         const imgEl = parent.querySelector('img');
+                         if (imgEl && imgEl.getAttribute('src')) {
+                            let src = imgEl.getAttribute('src');
+                            image = src.startsWith('http') || src.startsWith('data:') ? src : new URL(src, baseUrl).href;
+                         }
+                     }
+                  }
+                  if (video) isVideo = true;
+                  items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: '', source: sourceName });
+                }
+              });
+            }
+            return items;
+          };
+
+          // Fetch all URLs simultaneously
+          const allResults = await Promise.allSettled(rawUrlList.map(u => fetchSingleUrl(u)));
+          let allCombinedItems = [];
+          
+          allResults.forEach(result => {
+            if (result.status === 'fulfilled' && result.value) {
+              allCombinedItems = allCombinedItems.concat(result.value);
+            }
+          });
+
+          // Deduplicate by Link
+          let uniqueItems = Array.from(new Map(allCombinedItems.map(item => [item.link, item])).values());
+          
+          // Apply Keyword Filtering
+          const currentExclude = configRef.current.excludeKeywords;
+          if (currentExclude) {
+             const badWords = currentExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
+             if (badWords.length > 0) {
+                 uniqueItems = uniqueItems.filter(item => {
+                     const textContent = (item.title + " " + item.description).toLowerCase();
+                     // If the post contains ANY of the bad words, exclude it
+                     return !badWords.some(badWord => textContent.includes(badWord));
+                 });
+             }
           }
 
-          if (!htmlString || !htmlString.includes('<html')) throw new Error("Could not fetch valid HTML from the target URL.");
+          // Sort Chronologically (Newest First)
+          uniqueItems.sort((a, b) => {
+             const timeA = a.time ? new Date(a.time).getTime() : 0;
+             const timeB = b.time ? new Date(b.time).getTime() : 0;
+             return timeB - timeA; 
+          });
 
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(htmlString, 'text/html');
-          const baseUrl = new URL(fetchUrl).origin;
-          let items = [];
-          
-          if (fetchUrl.includes('t.me/s/')) {
-            const messages = doc.querySelectorAll('.tgme_widget_message');
-            if (messages.length === 0) throw new Error("No Telegram messages found. Channel may be private or proxy was blocked.");
-
-            messages.forEach((msg) => {
-              const textEl = msg.querySelector('.tgme_widget_message_text');
-              const dateLink = msg.querySelector('.tgme_widget_message_date');
-
-              if (textEl && dateLink) {
-                const rawText = textEl.innerText.trim();
-                let title = rawText.replace(/\n/g, ' ').trim();
-                if (!title) title = 'Telegram Update';
-                
-                // Set description to empty for Telegram so it does not render identical text twice
-                let description = '';
-
-                let link = dateLink.getAttribute('href');
-                if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
-
-                let timeStr = '';
-                const timeEl = dateLink.querySelector('time');
-                if (timeEl && timeEl.getAttribute('datetime')) {
-                  timeStr = timeEl.getAttribute('datetime');
-                }
-
-                let image = '';
-                let video = '';
-                let isVideo = false;
-                let embedUrl = '';
-                
-                // Advanced robust video extraction for Telegram
-                let videoEl = msg.querySelector('video');
-                if (!videoEl) {
-                   const videoWrap = msg.querySelector('.tgme_widget_message_video_wrap, .tgme_widget_message_video');
-                   if (videoWrap) videoEl = videoWrap.querySelector('video');
-                }
-
-                if (videoEl) {
-                    let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src');
-                    if (!vSrc) {
-                        const sourceEl = videoEl.querySelector('source');
-                        if (sourceEl) vSrc = sourceEl.getAttribute('src') || sourceEl.getAttribute('data-src');
-                    }
-                    if (vSrc) {
-                        video = vSrc;
-                        if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
-                    }
-                }
-                
-                if (video) {
-                    isVideo = true;
-                } else if (msg.querySelector('.tgme_widget_message_video_player, .tgme_widget_message_video_wrap, .play_icon, i.tgme_widget_message_video_icon')) {
-                    isVideo = true;
-                    try {
-                        const u = new URL(link);
-                        u.searchParams.set('embed', '1');
-                        u.searchParams.set('autoplay', '1');
-                        embedUrl = u.toString();
-                    } catch(e) {}
-                }
-
-                const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap, .tgme_widget_message_video_wrap, .tgme_widget_message_video_thumb');
-                if (photoWrap) {
-                  const style = photoWrap.getAttribute('style');
-                  const match = style && style.match(/background-image:\s*url\(['"]?([^'"]+)['"]?\)/i);
-                  if (match) image = match[1];
-                } 
-                if (!image) {
-                   const imgEl = msg.querySelector('.tgme_widget_message_photo img');
-                   if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
-                }
-                
-                items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: timeStr });
-              }
-            });
-            items.reverse(); 
-          } else {
-            const headings = doc.querySelectorAll('h1, h2, h3, h4');
-            headings.forEach((heading) => {
-              const linkEl = heading.querySelector('a') || (heading.tagName === 'A' ? heading : null);
-              if (linkEl && linkEl.innerText.trim().length > 15) {
-                const title = linkEl.innerText.trim();
-                let link = linkEl.getAttribute('href');
-                if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
-                
-                let description = '';
-                let sibling = heading.nextElementSibling;
-                if (sibling && sibling.tagName === 'P') description = sibling.innerText.trim().substring(0, 160) + '...';
-
-                let image = '';
-                let video = '';
-                let isVideo = false;
-                let embedUrl = '';
-
-                const parent = heading.parentElement;
-                if (parent) {
-                   const videoEl = parent.querySelector('video');
-                   if (videoEl) {
-                       let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src');
-                       if (!vSrc) {
-                           const sourceEl = videoEl.querySelector('source');
-                           if (sourceEl) vSrc = sourceEl.getAttribute('src') || sourceEl.getAttribute('data-src');
-                       }
-                       if (vSrc) {
-                           video = vSrc;
-                           if (video && !video.startsWith('http')) video = new URL(video, baseUrl).href;
-                       }
-                   }
-
-                   if (!video) {
-                       const imgEl = parent.querySelector('img');
-                       if (imgEl && imgEl.getAttribute('src')) {
-                          let src = imgEl.getAttribute('src');
-                          if (!src.startsWith('http') && !src.startsWith('data:')) src = new URL(src, baseUrl).href;
-                          image = src;
-                       }
-                   }
-                }
-                
-                if (video) isVideo = true;
-
-                items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: '' });
-              }
-            });
-          }
-          
-          const uniqueItems = Array.from(new Map(items.map(item => [item.link, item])).values());
           if (uniqueItems.length >= 1) {
             setFeedItems(prevItems => {
-               // Detect if there is a brand new post at the top of the feed
-               const isBrandNew = prevItems.length > 0 && prevItems[0].link !== uniqueItems[0].link;
+               const prevLinks = new Set(prevItems.map(i => i.link));
+               const newItems = uniqueItems.filter(i => !prevLinks.has(i.link));
                
-               if (!isSilent || isBrandNew) {
+               if (!isSilent || prevItems.length === 0) {
                    setCarouselIndex(0); 
-               }
-
-               // Trigger Native Browser TTS if Auto-Read is enabled and a new post arrives
-               if (isBrandNew && isSilent && configRef.current.autoRead) {
-                   const currentRemoveText = configRef.current.removeText;
-                   let textToRead = uniqueItems[0].title;
+               } else if (newItems.length > 0) {
+                   setCarouselIndex(0); 
                    
-                   // Clean the text before reading
-                   if (currentRemoveText) {
-                       const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                       textToRead = textToRead.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
+                   // Automatically Read all newly found items (oldest of the new batch first)
+                   if (isSilent && configRef.current.autoRead) {
+                       const currentRemoveText = configRef.current.removeText;
+                       // Reverse newItems so chronologically it reads the oldest new post first, leading up to latest
+                       [...newItems].reverse().forEach(item => {
+                           let textToRead = item.title;
+                           if (currentRemoveText) {
+                               const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                               textToRead = textToRead.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
+                           }
+                           speakText("Latest Update: " + textToRead);
+                       });
                    }
-                   
-                   speakText("Latest Update: " + textToRead);
                }
 
                return uniqueItems;
             });
-            if (!isSilent) setInfoMsg(`Successfully extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
+            if (!isSilent) setInfoMsg(`Successfully merged and extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
           } else {
-            throw new Error("Could not automatically identify feed items.");
+            throw new Error("Could not extract items. They may have been blocked by your filter.");
           }
         } catch (err) {
           if (!isSilent) {
             console.error("Scraping error:", err);
             setFeedItems(MOCK_DATA);
-            setErrorMsg(`Could not parse securely (${err.message}). Showing demo data instead.`);
+            setErrorMsg(`Error: ${err.message}. Showing demo data instead.`);
           }
         } finally {
           if (!isSilent) setIsGenerating(false);
@@ -497,7 +524,8 @@
             maxItems: parseInt(params.get('limit')) || 5,
             tickerSpeed: params.get('speed') !== null ? parseInt(params.get('speed')) : 50,
             tickerCharLimit: parseInt(params.get('chars')) || 80,
-            removeText: params.get('remove') || '', 
+            removeText: params.get('remove') ? decodeURIComponent(params.get('remove')) : '', 
+            excludeKeywords: params.get('exclude') ? decodeURIComponent(params.get('exclude')) : '',
             refreshRate: parseInt(params.get('refresh')) || 60,
             carouselMode: params.get('carousel') === 'true',
             autoRead: params.get('autoRead') === 'true',
@@ -507,8 +535,8 @@
 
           const targetUrl = params.get('url');
           if (targetUrl && targetUrl !== 'demo') {
-            setUrl(targetUrl); 
-            fetchFeedData(targetUrl);
+            setUrl(decodeURIComponent(targetUrl)); 
+            fetchFeedData(decodeURIComponent(targetUrl));
           } else {
             setFeedItems(MOCK_DATA);
           }
@@ -540,7 +568,7 @@
         const embedCode = `
 <!-- RSS Feed Widget -->
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
   width="${exportWidth}" 
   height="${exportHeight}" 
   frameborder="0" 
@@ -606,7 +634,6 @@
       const renderLightbox = () => {
         if (!lightbox) return null;
         
-        // Dynamically style telegram iframe if it's in dark mode
         const iframeUrl = (lightbox.type === 'iframe' && config.theme === 'dark') ? lightbox.url + '&dark=1' : lightbox.url;
 
         return (
@@ -747,17 +774,17 @@
 
                               {item.video ? (
                                 <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                  <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
+                                  <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : item.isVideo ? (
                                 <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
-                                  {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
+                                  {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
                                   <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : (
                                 <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                  <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
+                                  <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               )}
@@ -769,11 +796,10 @@
                               <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
                                 {cleanText(item.title)}
                               </h3>
-                              {item.time && (
-                                <p className={`text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                  <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
-                                </p>
-                              )}
+                              <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                              </div>
                               {config.showDescription && item.description && (
                                 <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                   {cleanText(item.description)}
@@ -833,11 +859,10 @@
                           <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                             {cleanText(item.title)}
                           </h3>
-                          {item.time && (
-                            <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                              <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
-                            </p>
-                          )}
+                          <div className={`flex items-center gap-2 text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{item.source}</span></span>}
+                            {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                          </div>
                           {config.showDescription && item.description && (
                             <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                               {cleanText(item.description)}
@@ -861,6 +886,7 @@
                       return (
                         <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                           <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
+                          {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                           {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                         </a>
@@ -874,6 +900,7 @@
                       return (
                         <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                           <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
+                          {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                           {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                         </a>
@@ -926,13 +953,20 @@
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">1</span>
-                    <h2 className="font-semibold text-gray-800">Data Source</h2>
+                    <h2 className="font-semibold text-gray-800">Data Sources</h2>
                   </div>
                   <div className="p-5">
                     <form onSubmit={handleGenerate} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Target URL</label>
-                        <input type="url" placeholder="https://t.me/yourchannel" value={url} onChange={(e) => setUrl(e.target.value)} className="w-full px-4 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" required />
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Target URLs</label>
+                        <textarea 
+                          placeholder="https://t.me/yourchannel&#10;https://t.me/anotherchannel" 
+                          value={url} 
+                          onChange={(e) => setUrl(e.target.value)} 
+                          className="w-full px-4 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y min-h-[80px]" 
+                          required 
+                        />
+                        <p className="text-xs text-gray-500 mt-2">Enter multiple URLs (one per line or comma-separated). Posts will be merged chronologically.</p>
                       </div>
                       <button type="submit" disabled={isGenerating || !url} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-2.5 rounded-lg font-medium transition-colors">
                         {isGenerating ? <><i className="fa-solid fa-rotate fa-spin"></i> Extracting...</> : <><i className="fa-solid fa-rss"></i> Generate Feed</>}
@@ -1008,17 +1042,33 @@
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                        <i className="fa-solid fa-eraser"></i> Text to Remove
-                      </label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g., Follow @mypage" 
-                        value={config.removeText} 
-                        onChange={(e) => setConfig({ ...config, removeText: e.target.value })} 
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                          <i className="fa-solid fa-eraser"></i> Text to Remove
+                        </label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g., Follow @mypage" 
+                          value={config.removeText} 
+                          onChange={(e) => setConfig({ ...config, removeText: e.target.value })} 
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1 text-red-600">
+                          <i className="fa-solid fa-filter"></i> Exclude Keywords (Spam Filter)
+                        </label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g., promo, subscribe, giveaway" 
+                          value={config.excludeKeywords} 
+                          onChange={(e) => setConfig({ ...config, excludeKeywords: e.target.value })} 
+                          className="w-full px-3 py-2 bg-red-50/50 border border-red-200 text-gray-900 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm transition-all" 
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1">If a post contains these words, it will be completely hidden and skipped.</p>
+                      </div>
                     </div>
 
                     {config.layout !== 'ticker' && (
@@ -1167,7 +1217,7 @@
                     
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -1251,11 +1301,10 @@
                                           <h3 className="font-semibold text-lg sm:text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                             {cleanText(item.title)}
                                           </h3>
-                                          {item.time && (
-                                            <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                              <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
-                                            </p>
-                                          )}
+                                          <div className={`flex items-center gap-3 text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                            {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                                          </div>
                                           {config.showDescription && item.description && (
                                             <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                               {cleanText(item.description)}
@@ -1305,17 +1354,17 @@
 
                                           {item.video ? (
                                             <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                              <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
+                                              <AutoPlayVideo src={item.video} poster={item.image} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
                                             <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
-                                              {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
+                                              {item.image && <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
                                               <div className={`absolute inset-0 flex items-center justify-center transition-colors ${item.image ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : (
                                             <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: item.image}); }}>
-                                              <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-contain group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
+                                              <img src={item.image} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           )}
@@ -1327,11 +1376,10 @@
                                           <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
                                             {cleanText(item.title)}
                                           </h3>
-                                          {item.time && (
-                                            <p className={`text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                              <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
-                                            </p>
-                                          )}
+                                          <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                            {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                                          </div>
                                           {config.showDescription && item.description && (
                                             <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                               {cleanText(item.description)}
@@ -1391,11 +1439,10 @@
                                       <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
                                         {cleanText(item.title)}
                                       </h3>
-                                      {item.time && (
-                                        <p className={`text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                          <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
-                                        </p>
-                                      )}
+                                      <div className={`flex items-center gap-2 text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                        {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{item.source}</span></span>}
+                                        {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                                      </div>
                                       {config.showDescription && item.description && (
                                         <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                           {cleanText(item.description)}
@@ -1419,6 +1466,7 @@
                                   return (
                                     <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                                       <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
+                                      {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
                                       <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                                       {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                                     </a>
@@ -1432,6 +1480,7 @@
                                   return (
                                     <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                                       <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
+                                      {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
                                       <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                                       {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                                     </a>
