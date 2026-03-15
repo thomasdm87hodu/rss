@@ -120,6 +120,7 @@
       const audioQueueRef = useRef([]); // The queue holds pending audio texts
       const isSpeakingRef = useRef(false); // Lock to prevent overlapping audio
       const currentAudioRef = useRef(null);
+      const recentlyReadRef = useRef(new Set()); // Memory bank to prevent reading exact duplicates
 
       const [config, setConfig] = useState({
         layout: 'list',
@@ -253,6 +254,21 @@
       // Public API to speak text: Just pushes to queue!
       const speakText = useCallback((text, forceApi = false) => {
         if (!text || (isGlobalMutedRef.current && !forceApi)) return;
+        
+        // Anti-Duplicate Filter: Prevent reading the exact same string twice in a row (e.g., from an image album post)
+        if (!forceApi) {
+           if (recentlyReadRef.current.has(text)) {
+               return; // Silently discard the duplicate text
+           }
+           recentlyReadRef.current.add(text);
+           
+           // Keep memory bank from growing infinitely (stores last 50 read posts)
+           if (recentlyReadRef.current.size > 50) {
+               const iterator = recentlyReadRef.current.values();
+               recentlyReadRef.current.delete(iterator.next().value);
+           }
+        }
+
         audioQueueRef.current.push({ text, forceApi });
         processAudioQueue();
       }, [processAudioQueue]);
@@ -282,7 +298,7 @@
       };
 
       // =====================================================================
-      // Multi-Source Fetch Logic
+      // Multi-Source Fetch & Scraping Engine
       // =====================================================================
       const fetchFeedData = useCallback(async (targetUrlsStr, isSilent = false) => {
         if (!isSilent) {
@@ -327,108 +343,212 @@
               }
             }
 
-            if (!htmlString || !htmlString.includes('<html')) throw new Error("Invalid HTML");
+            if (!htmlString) throw new Error("Empty response received");
 
             const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlString, 'text/html');
+            let doc;
+            let isXML = false;
+            
+            // Detect if the payload is RSS/XML
+            const htmlTrimmed = htmlString.trim();
+            if (htmlTrimmed.startsWith('<?xml') || htmlTrimmed.includes('<rss') || htmlTrimmed.includes('<feed')) {
+                doc = parser.parseFromString(htmlString, 'text/xml');
+                isXML = true;
+            } else {
+                doc = parser.parseFromString(htmlString, 'text/html');
+            }
+
             const baseUrl = new URL(fetchUrl).origin;
             let items = [];
-            
-            if (fetchUrl.includes('t.me/s/')) {
-              const messages = doc.querySelectorAll('.tgme_widget_message');
-              messages.forEach((msg) => {
-                const textEl = msg.querySelector('.tgme_widget_message_text');
-                const dateLink = msg.querySelector('.tgme_widget_message_date');
+            let sourceName = new URL(fetchUrl).hostname.replace('www.', '');
+
+            if (isXML) {
+                // --- 1. Standard RSS / Atom XML Parser ---
+                const channelTitle = doc.querySelector('channel > title, feed > title');
+                if (channelTitle) sourceName = channelTitle.textContent.trim();
                 
-                // Extract Channel Source Name
-                let sourceName = '';
-                const authorEl = msg.querySelector('.tgme_widget_message_owner_name span') || msg.querySelector('.tgme_widget_message_owner_name');
-                if (authorEl) {
-                    sourceName = authorEl.innerText.trim();
-                } else {
-                    const urlParts = new URL(fetchUrl).pathname.split('/').filter(Boolean);
-                    sourceName = urlParts[urlParts.length - 1] || 'Telegram';
-                }
+                const nodes = doc.querySelectorAll('item, entry');
+                nodes.forEach(node => {
+                    let title = node.querySelector('title')?.textContent?.trim() || '';
+                    let rawDescription = node.querySelector('description, content, summary')?.textContent?.trim() || '';
+                    
+                    let linkNode = node.querySelector('link');
+                    let link = linkNode?.textContent?.trim() || linkNode?.getAttribute('href') || fetchUrl;
+                    if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
+                    
+                    let timeStr = node.querySelector('pubDate, published, updated, date, dc\\:date')?.textContent?.trim() || '';
+                    
+                    let image = '';
+                    let video = '';
+                    let isVideo = false;
+                    let embedUrl = '';
+                    
+                    // Enclosures
+                    const enclosure = node.querySelector('enclosure');
+                    if (enclosure) {
+                        const type = enclosure.getAttribute('type') || '';
+                        const url = enclosure.getAttribute('url');
+                        if (type.startsWith('video')) { video = url; isVideo = true; } 
+                        else if (type.startsWith('image')) { image = url; }
+                    }
+                    
+                    // Parse CDATA/HTML inside description for media
+                    if (!image) {
+                        const imgMatch = rawDescription.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
+                        if (imgMatch) image = imgMatch[1];
+                    }
+                    if (!video) {
+                        const vidMatch = rawDescription.match(/<video[^>]+src=['"]([^'"]+)['"]/i) || rawDescription.match(/<source[^>]+src=['"]([^'"]+)['"]/i);
+                        if (vidMatch) { video = vidMatch[1]; isVideo = true; }
+                    }
 
-                if (textEl && dateLink) {
-                  let title = textEl.innerText.trim().replace(/\n/g, ' ');
-                  if (!title) title = 'Telegram Update';
+                    // Strip HTML from description for pure text reading
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = rawDescription;
+                    let cleanDescription = tempDiv.textContent || tempDiv.innerText || '';
+                    
+                    // Deduplicate title/description (common in Twitter RSS feeds)
+                    if (title && cleanDescription && cleanDescription.includes(title)) cleanDescription = '';
+                    if (title && cleanDescription && title.includes(cleanDescription)) cleanDescription = '';
+
+                    if (title || cleanDescription) {
+                        items.push({ id: Math.random().toString(), title: title || cleanDescription, link, description: title ? cleanDescription : '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
+                    }
+                });
+            } else if (fetchUrl.includes('t.me/s/')) {
+                // --- 2. Telegram Logic (Existing) ---
+                const messages = doc.querySelectorAll('.tgme_widget_message');
+                messages.forEach((msg) => {
+                  const textEl = msg.querySelector('.tgme_widget_message_text');
+                  const dateLink = msg.querySelector('.tgme_widget_message_date');
                   
-                  // Set description to empty for Telegram so it does not render identical text twice
-                  let description = '';
-
-                  let link = dateLink.getAttribute('href');
-                  if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
-
-                  let timeStr = '';
-                  const timeEl = dateLink.querySelector('time');
-                  if (timeEl && timeEl.getAttribute('datetime')) timeStr = timeEl.getAttribute('datetime');
-
-                  let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
-                  
-                  let videoEl = msg.querySelector('video') || msg.querySelector('.tgme_widget_message_video_wrap video');
-                  if (videoEl) {
-                      let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
-                      if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
+                  const authorEl = msg.querySelector('.tgme_widget_message_owner_name span') || msg.querySelector('.tgme_widget_message_owner_name');
+                  if (authorEl) {
+                      sourceName = authorEl.innerText.trim();
+                  } else {
+                      const urlParts = new URL(fetchUrl).pathname.split('/').filter(Boolean);
+                      sourceName = urlParts[urlParts.length - 1] || 'Telegram';
                   }
-                  
-                  if (video) isVideo = true;
-                  else if (msg.querySelector('.tgme_widget_message_video_player, .tgme_widget_message_video_wrap, .play_icon')) {
-                      isVideo = true;
-                      try {
-                          const u = new URL(link); u.searchParams.set('embed', '1'); u.searchParams.set('autoplay', '1');
-                          embedUrl = u.toString();
-                      } catch(e) {}
-                  }
 
-                  const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap, .tgme_widget_message_video_thumb');
-                  if (photoWrap) {
-                    const match = photoWrap.getAttribute('style')?.match(/background-image:\s*url\(['"]?([^'"]+)['"]?\)/i);
-                    if (match) image = match[1];
-                  } 
-                  if (!image) {
-                     const imgEl = msg.querySelector('.tgme_widget_message_photo img');
-                     if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
+                  if (textEl && dateLink) {
+                    let title = textEl.innerText.trim().replace(/\n/g, ' ');
+                    if (!title) title = 'Telegram Update';
+
+                    let link = dateLink.getAttribute('href');
+                    if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
+
+                    let timeStr = '';
+                    const timeEl = dateLink.querySelector('time');
+                    if (timeEl && timeEl.getAttribute('datetime')) timeStr = timeEl.getAttribute('datetime');
+
+                    let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
+                    
+                    let videoEl = msg.querySelector('video') || msg.querySelector('.tgme_widget_message_video_wrap video');
+                    if (videoEl) {
+                        let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
+                        if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
+                    }
+                    
+                    if (video) isVideo = true;
+                    else if (msg.querySelector('.tgme_widget_message_video_player, .tgme_widget_message_video_wrap, .play_icon')) {
+                        isVideo = true;
+                        try {
+                            const u = new URL(link); u.searchParams.set('embed', '1'); u.searchParams.set('autoplay', '1');
+                            embedUrl = u.toString();
+                        } catch(e) {}
+                    }
+
+                    const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap, .tgme_widget_message_video_thumb');
+                    if (photoWrap) {
+                      const match = photoWrap.getAttribute('style')?.match(/background-image:\s*url\(['"]?([^'"]+)['"]?\)/i);
+                      if (match) image = match[1];
+                    } 
+                    if (!image) {
+                       const imgEl = msg.querySelector('.tgme_widget_message_photo img');
+                       if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
+                    }
+                    
+                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
                   }
-                  
-                  items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
-                }
-              });
+                });
+            } else if (htmlString.includes('timeline-item') && htmlString.includes('tweet-content')) {
+                // --- 3. Nitter / Xcancel HTML Parser ---
+                const profileNameEl = doc.querySelector('.profile-card-fullname');
+                if (profileNameEl) sourceName = profileNameEl.innerText.trim();
+
+                const tweets = doc.querySelectorAll('.timeline-item:not(.show-more)');
+                tweets.forEach(tweet => {
+                    const contentEl = tweet.querySelector('.tweet-content');
+                    if (!contentEl) return;
+                    
+                    let title = contentEl.innerText.trim();
+                    if (!title) return;
+
+                    let linkEl = tweet.querySelector('.tweet-link');
+                    let link = linkEl ? linkEl.getAttribute('href') : fetchUrl;
+                    if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
+
+                    let timeStr = '';
+                    const dateEl = tweet.querySelector('.tweet-date a');
+                    if (dateEl) timeStr = dateEl.getAttribute('title') || dateEl.innerText;
+
+                    let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
+
+                    const imgEl = tweet.querySelector('.attachment.image img, .still-image img');
+                    if (imgEl) {
+                        image = imgEl.getAttribute('src');
+                        if (image && !image.startsWith('http')) image = new URL(image, baseUrl).href;
+                    }
+
+                    const vidEl = tweet.querySelector('video');
+                    if (vidEl) {
+                        const src = vidEl.getAttribute('data-url') || vidEl.getAttribute('src');
+                        const source = vidEl.querySelector('source');
+                        const finalSrc = src || (source && source.getAttribute('src'));
+                        if (finalSrc) {
+                            video = finalSrc.startsWith('http') ? finalSrc : new URL(finalSrc, baseUrl).href;
+                            isVideo = true;
+                            const poster = vidEl.getAttribute('poster');
+                            if (poster) image = poster.startsWith('http') ? poster : new URL(poster, baseUrl).href;
+                        }
+                    }
+
+                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
+                });
             } else {
-              // Generic HTML parsing
-              let sourceName = new URL(fetchUrl).hostname.replace('www.', '');
-              const headings = doc.querySelectorAll('h1, h2, h3, h4');
-              headings.forEach((heading) => {
-                const linkEl = heading.querySelector('a') || (heading.tagName === 'A' ? heading : null);
-                if (linkEl && linkEl.innerText.trim().length > 15) {
-                  const title = linkEl.innerText.trim();
-                  let link = linkEl.getAttribute('href');
-                  if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
-                  
-                  let description = '';
-                  let sibling = heading.nextElementSibling;
-                  if (sibling && sibling.tagName === 'P') description = sibling.innerText.trim().substring(0, 160) + '...';
+                // --- 4. Generic HTML Parser Fallback ---
+                const headings = doc.querySelectorAll('h1, h2, h3, h4');
+                headings.forEach((heading) => {
+                  const linkEl = heading.querySelector('a') || (heading.tagName === 'A' ? heading : null);
+                  if (linkEl && linkEl.innerText.trim().length > 15) {
+                    const title = linkEl.innerText.trim();
+                    let link = linkEl.getAttribute('href');
+                    if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
+                    
+                    let description = '';
+                    let sibling = heading.nextElementSibling;
+                    if (sibling && sibling.tagName === 'P') description = sibling.innerText.trim().substring(0, 160) + '...';
 
-                  let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
-                  const parent = heading.parentElement;
-                  if (parent) {
-                     const videoEl = parent.querySelector('video');
-                     if (videoEl) {
-                         let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
-                         if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
-                     }
-                     if (!video) {
-                         const imgEl = parent.querySelector('img');
-                         if (imgEl && imgEl.getAttribute('src')) {
-                            let src = imgEl.getAttribute('src');
-                            image = src.startsWith('http') || src.startsWith('data:') ? src : new URL(src, baseUrl).href;
-                         }
-                     }
+                    let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
+                    const parent = heading.parentElement;
+                    if (parent) {
+                       const videoEl = parent.querySelector('video');
+                       if (videoEl) {
+                           let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
+                           if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
+                       }
+                       if (!video) {
+                           const imgEl = parent.querySelector('img');
+                           if (imgEl && imgEl.getAttribute('src')) {
+                              let src = imgEl.getAttribute('src');
+                              image = src.startsWith('http') || src.startsWith('data:') ? src : new URL(src, baseUrl).href;
+                           }
+                       }
+                    }
+                    if (video) isVideo = true;
+                    items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: '', source: sourceName });
                   }
-                  if (video) isVideo = true;
-                  items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: '', source: sourceName });
-                }
-              });
+                });
             }
             return items;
           };
@@ -725,11 +845,10 @@
                               <h3 className="font-semibold text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                 {cleanText(item.title)}
                               </h3>
-                              {item.time && (
-                                <p className={`text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                  <i className="fa-regular fa-clock mr-1"></i>{timeAgo(item.time)}
-                                </p>
-                              )}
+                              <div className={`flex items-center gap-3 text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                              </div>
                               {config.showDescription && item.description && (
                                 <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
                                   {cleanText(item.description)}
@@ -864,7 +983,7 @@
                           )}
                         </div>
                       ) : config.showImages && !hasMedia ? (
-                         <div className="w-full h-16 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
+                         <div className="w-full h-24 opacity-50 border-b border-inherit" style={getGradientStyle()}></div>
                       ) : null}
                       <div className="p-4 flex flex-col flex-1">
                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
