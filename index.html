@@ -145,6 +145,7 @@
         tickerCharLimit: 80,
         removeText: '', 
         excludeKeywords: '', // Spam filter keywords
+        whitelistSources: '', // NEW: Only show news from these sources
         fallbackImage: '', // Fallback Image for text-only posts
         refreshRate: 60, 
         carouselMode: false, 
@@ -328,18 +329,29 @@
         if (isPreviewing) return;
         setIsPreviewing(true);
         
+        // Temporarily clear queue to prioritize the preview
+        audioQueueRef.current = [];
+        
         let textToRead = "This is a preview of the selected voice.";
         if (feedItems.length > 0) {
           let title = feedItems[0].title;
+          let description = feedItems[0].description || '';
+          
           if (config.removeText) {
              const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
              title = title.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
+             description = description.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
           }
+          
           textToRead = "Latest Update: " + title;
+          if (description && description.length > 10) {
+              textToRead += ". " + description;
+          }
         }
         
         speakText(textToRead, { forceApi: true });
         
+        // Simple timeout to reset button state
         setTimeout(() => setIsPreviewing(false), 2000); 
       };
 
@@ -366,9 +378,16 @@
                
                if (randomItem) {
                    let textToRead = randomItem.title;
+                   let description = randomItem.description || '';
+                   
                    if (config.removeText) {
                        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                        textToRead = textToRead.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
+                       description = description.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
+                   }
+                   
+                   if (description && description.length > 10) {
+                       textToRead += ". " + description;
                    }
                    
                    const icymiPrefixes = [
@@ -475,7 +494,8 @@
                         title = title.substring(0, title.length - (` - ${itemSourceName}`).length);
                     }
 
-                    let rawDescription = node.querySelector('description, content, summary')?.textContent?.trim() || '';
+                    // Look for rich content first, fallback to standard description
+                    let rawDescription = node.querySelector('encoded, content\\:encoded, description, content, summary')?.textContent?.trim() || '';
                     
                     let linkNode = node.querySelector('link');
                     let link = linkNode?.textContent?.trim() || linkNode?.getAttribute('href') || fetchUrl;
@@ -507,17 +527,21 @@
                         if (vidMatch) { video = vidMatch[1]; isVideo = true; }
                     }
 
-                    // Strip HTML from description for pure text reading
+                    // Strip HTML from description to get pure article text/summary
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = rawDescription;
                     let cleanDescription = tempDiv.textContent || tempDiv.innerText || '';
                     
-                    // Deduplicate title/description (common in Twitter/Google RSS feeds)
-                    if (title && cleanDescription && cleanDescription.includes(title)) cleanDescription = '';
-                    if (title && cleanDescription && title.includes(cleanDescription)) cleanDescription = '';
+                    // Clean up duplicate titles/sources often stuffed into Google News descriptions
+                    if (title && cleanDescription && cleanDescription.includes(title)) {
+                        cleanDescription = cleanDescription.replace(title, '').trim();
+                    }
+                    if (itemSourceName && cleanDescription.startsWith("- " + itemSourceName)) {
+                        cleanDescription = cleanDescription.replace("- " + itemSourceName, '').trim();
+                    }
 
                     if (title || cleanDescription) {
-                        items.push({ id: Math.random().toString(), title: title || cleanDescription, link, description: title ? cleanDescription : '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
+                        items.push({ id: Math.random().toString(), title: title || 'News Update', link, description: cleanDescription, image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
                     }
                 });
             } else if (fetchUrl.includes('t.me/s/')) {
@@ -673,15 +697,26 @@
           // Deduplicate by Link
           let uniqueItems = Array.from(new Map(allCombinedItems.map(item => [item.link, item])).values());
           
-          // Apply Keyword Filtering
+          // Apply Keyword EXCLUSION Filtering
           const currentExclude = configRef.current.excludeKeywords;
           if (currentExclude) {
              const badWords = currentExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
              if (badWords.length > 0) {
                  uniqueItems = uniqueItems.filter(item => {
                      const textContent = (item.title + " " + item.description).toLowerCase();
-                     // If the post contains ANY of the bad words, exclude it
                      return !badWords.some(badWord => textContent.includes(badWord));
+                 });
+             }
+          }
+          
+          // Apply Source WHITELIST Filtering
+          const currentWhitelist = configRef.current.whitelistSources;
+          if (currentWhitelist) {
+             const goodSources = currentWhitelist.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
+             if (goodSources.length > 0) {
+                 uniqueItems = uniqueItems.filter(item => {
+                     const itemSource = (item.source || '').toLowerCase();
+                     return goodSources.some(goodSource => itemSource.includes(goodSource));
                  });
              }
           }
@@ -709,13 +744,21 @@
                        // Reverse newItems so chronologically it reads the oldest new post first, leading up to latest
                        [...newItems].reverse().forEach(item => {
                            let textToRead = item.title;
+                           let description = item.description || '';
+                           
                            if (currentRemoveText) {
                                const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                                textToRead = textToRead.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
+                               description = description.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
+                           }
+                           
+                           let combinedRead = "Latest Update: " + textToRead;
+                           if (description && description.length > 10) {
+                               combinedRead += ". " + description;
                            }
                            
                            // Flag as a Live Update so it interrupts any playing ICYMI loops
-                           speakText("Latest Update: " + textToRead, { isLiveUpdate: true });
+                           speakText(combinedRead, { isLiveUpdate: true });
                        });
                    }
                }
@@ -724,7 +767,7 @@
             });
             if (!isSilent) setInfoMsg(`Successfully extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
           } else {
-            throw new Error("Could not extract items. They may have been blocked by your filter.");
+            throw new Error("Could not extract items. They may have been blocked by your filters.");
           }
         } catch (err) {
           if (!isSilent) {
@@ -756,6 +799,7 @@
             tickerCharLimit: parseInt(params.get('chars')) || 80,
             removeText: params.get('remove') ? decodeURIComponent(params.get('remove')) : '', 
             excludeKeywords: params.get('exclude') ? decodeURIComponent(params.get('exclude')) : '',
+            whitelistSources: params.get('whitelist') ? decodeURIComponent(params.get('whitelist')) : '',
             fallbackImage: params.get('fallbackImg') ? decodeURIComponent(params.get('fallbackImg')) : '',
             refreshRate: parseInt(params.get('refresh')) || 60,
             carouselMode: params.get('carousel') === 'true',
@@ -809,7 +853,7 @@
         const embedCode = `
 <!-- RSS Feed Widget -->
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
   width="${exportWidth}" 
   height="${exportHeight}" 
   frameborder="0" 
@@ -1347,6 +1391,21 @@
                         />
                         <p className="text-[11px] text-gray-500 mt-1">If a post contains these words, it will be completely hidden and skipped.</p>
                       </div>
+
+                      {/* NEW: Whitelist Sources */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1 text-green-600">
+                          <i className="fa-solid fa-check-circle"></i> Whitelist Sources (Optional)
+                        </label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g., Reuters, BBC, TechCrunch" 
+                          value={config.whitelistSources} 
+                          onChange={(e) => setConfig({ ...config, whitelistSources: e.target.value })} 
+                          className="w-full px-3 py-2 bg-green-50/50 border border-green-200 text-gray-900 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-sm transition-all" 
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1">If provided, ONLY news from these sources will be shown. Leave blank to allow all.</p>
+                      </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
@@ -1437,7 +1496,7 @@
                         <input type="range" min="30" max="300" step="30" value={config.refreshRate} onChange={(e) => setConfig({ ...config, refreshRate: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                       </div>
 
-                      {/* NEW: Auto-Read Toggle */}
+                      {/* Auto-Read Toggle */}
                       <label className="flex items-center justify-between cursor-pointer pt-2">
                         <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-microphone"></i> Auto-Read Updates (Voice)</span>
                         <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.autoRead ? 'bg-blue-600' : 'bg-gray-300'}`}>
@@ -1478,7 +1537,7 @@
                             <p className="text-[11px] text-green-600 mt-2"><i className="fa-solid fa-shield-halved"></i> Audio generated securely via your Vercel backend.</p>
                           </div>
                           
-                          {/* NEW: ICYMI Settings Block */}
+                          {/* ICYMI Settings Block */}
                           <div className="pt-2 border-t border-gray-100">
                             <label className="flex items-center justify-between cursor-pointer">
                               <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-rotate-left"></i> ICYMI Auto-Loop (Fills dead air)</span>
@@ -1530,7 +1589,7 @@
                     
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -1614,7 +1673,7 @@
 
                                       <div className="flex flex-col justify-center flex-1 min-w-0">
                                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-                                          <h3 className="font-semibold text-lg sm:text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
+                                          <h3 className="font-semibold text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
                                             {cleanText(item.title)}
                                           </h3>
                                           <div className={`flex items-center gap-3 text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
