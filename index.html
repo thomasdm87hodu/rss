@@ -145,7 +145,7 @@
         tickerCharLimit: 80,
         removeText: '', 
         excludeKeywords: '', // Spam filter keywords
-        whitelistSources: '', // NEW: Only show news from these sources
+        whitelistSources: '', // Only show news from these sources
         fallbackImage: '', // Fallback Image for text-only posts
         refreshRate: 60, 
         carouselMode: false, 
@@ -697,7 +697,10 @@
           // Deduplicate by Link
           let uniqueItems = Array.from(new Map(allCombinedItems.map(item => [item.link, item])).values());
           
-          // Apply Keyword EXCLUSION Filtering
+          // Note: Exclude/Whitelist Filtering is done in the rendering pass (processedItems) 
+          // so that the UI can update instantly as the user types in the config boxes.
+          // However, we MUST filter them here too, so the Auto-Read TTS doesn't read filtered spam out loud.
+          
           const currentExclude = configRef.current.excludeKeywords;
           if (currentExclude) {
              const badWords = currentExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
@@ -709,7 +712,6 @@
              }
           }
           
-          // Apply Source WHITELIST Filtering
           const currentWhitelist = configRef.current.whitelistSources;
           if (currentWhitelist) {
              const goodSources = currentWhitelist.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
@@ -897,7 +899,34 @@
         return `${days} day${days > 1 ? 's' : ''} ago`;
       };
 
-      const displayItems = feedItems.slice(0, config.maxItems);
+      // =====================================================================
+      // Live Preview Real-Time Filtering
+      // =====================================================================
+      let processedItems = feedItems;
+      
+      const uiExclude = config.excludeKeywords;
+      if (uiExclude) {
+         const badWords = uiExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
+         if (badWords.length > 0) {
+             processedItems = processedItems.filter(item => {
+                 const textContent = (item.title + " " + item.description).toLowerCase();
+                 return !badWords.some(badWord => textContent.includes(badWord));
+             });
+         }
+      }
+      
+      const uiWhitelist = config.whitelistSources;
+      if (uiWhitelist) {
+         const goodSources = uiWhitelist.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
+         if (goodSources.length > 0) {
+             processedItems = processedItems.filter(item => {
+                 const itemSource = (item.source || '').toLowerCase();
+                 return goodSources.some(goodSource => itemSource.includes(goodSource));
+             });
+         }
+      }
+
+      const displayItems = processedItems.slice(0, config.maxItems);
       
       const safeItemCount = Math.max(1, displayItems.length);
       const activeCarouselIndex = carouselIndex % safeItemCount;
