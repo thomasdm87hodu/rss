@@ -126,6 +126,10 @@
       const isSpeakingRef = useRef(false); // Lock to prevent overlapping audio
       const currentAudioRef = useRef(null);
       const recentlyReadRef = useRef(new Set()); // Memory bank to prevent reading exact duplicates
+      
+      // ICYMI / Interruption Tracking Refs
+      const currentlyPlayingTypeRef = useRef(null); // 'live' | 'icymi' | null
+      const lastSpokenTimeRef = useRef(Date.now()); // Tracks dead air time
 
       const [config, setConfig] = useState({
         layout: 'list',
@@ -145,6 +149,8 @@
         refreshRate: 60, 
         carouselMode: false, 
         autoRead: false,
+        enableIcymi: false, // ICYMI Auto-Loop
+        icymiTime: 3,       // Minutes of silence before ICYMI kicks in
         openAIVoice: 'alloy', 
         seamless: false, 
       });
@@ -171,14 +177,17 @@
         if (isGlobalMutedRef.current) {
           audioQueueRef.current = []; // Clear the queue so it doesn't resume later
           isSpeakingRef.current = false;
+          currentlyPlayingTypeRef.current = null;
           
           if (currentAudioRef.current) {
+            currentAudioRef.current.onended = null;
             currentAudioRef.current.pause();
             currentAudioRef.current = null;
           }
           if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
           }
+          lastSpokenTimeRef.current = Date.now();
         }
       }, []);
 
@@ -187,10 +196,18 @@
       // =====================================================================
       const processAudioQueue = useCallback(async () => {
         // If muted, already speaking, or queue is empty, do nothing
-        if (isGlobalMutedRef.current || isSpeakingRef.current || audioQueueRef.current.length === 0) return;
+        if (isGlobalMutedRef.current || isSpeakingRef.current || audioQueueRef.current.length === 0) {
+            if (audioQueueRef.current.length === 0 && !isSpeakingRef.current) {
+                lastSpokenTimeRef.current = Date.now(); // Keep resetting while empty
+            }
+            return;
+        }
 
         isSpeakingRef.current = true; // Lock the queue
-        const { text, forceApi } = audioQueueRef.current.shift(); // Get the next item
+        lastSpokenTimeRef.current = Date.now(); // Reset dead air timer
+        const { text, forceApi, isIcymi } = audioQueueRef.current.shift(); // Get the next item
+        currentlyPlayingTypeRef.current = isIcymi ? 'icymi' : 'live';
+        
         const voice = configRef.current.openAIVoice || 'alloy';
 
         if (configRef.current.autoRead || forceApi) {
@@ -212,11 +229,15 @@
             audio.onended = () => {
               isSpeakingRef.current = false;
               currentAudioRef.current = null;
+              currentlyPlayingTypeRef.current = null;
+              lastSpokenTimeRef.current = Date.now();
               processAudioQueue(); // Trigger next item in line
             };
             audio.onerror = () => {
               isSpeakingRef.current = false;
               currentAudioRef.current = null;
+              currentlyPlayingTypeRef.current = null;
+              lastSpokenTimeRef.current = Date.now();
               processAudioQueue(); 
             };
 
@@ -224,6 +245,7 @@
               console.warn("Autoplay blocked. User interaction required.", e);
               isSpeakingRef.current = false;
               currentAudioRef.current = null;
+              currentlyPlayingTypeRef.current = null;
               processAudioQueue(); 
             });
             return;
@@ -242,39 +264,62 @@
           
           utterance.onend = () => {
              isSpeakingRef.current = false;
+             currentlyPlayingTypeRef.current = null;
+             lastSpokenTimeRef.current = Date.now();
              processAudioQueue();
           };
           utterance.onerror = () => {
              isSpeakingRef.current = false;
+             currentlyPlayingTypeRef.current = null;
+             lastSpokenTimeRef.current = Date.now();
              processAudioQueue();
           };
           
           window.speechSynthesis.speak(utterance);
         } else {
           isSpeakingRef.current = false;
+          currentlyPlayingTypeRef.current = null;
           processAudioQueue();
         }
       }, [myTtsUrl]);
 
-      // Public API to speak text: Just pushes to queue!
-      const speakText = useCallback((text, forceApi = false) => {
+      // Public API to speak text: Just pushes to queue, handles interruptions
+      const speakText = useCallback((text, options = {}) => {
+        const { forceApi = false, isLiveUpdate = false, isIcymi = false } = options;
+        
         if (!text || (isGlobalMutedRef.current && !forceApi)) return;
         
-        // Anti-Duplicate Filter: Prevent reading the exact same string twice in a row
-        if (!forceApi) {
-           if (recentlyReadRef.current.has(text)) {
-               return; // Silently discard the duplicate text
-           }
+        // Anti-Duplicate Filter for live updates
+        if (!forceApi && !isIcymi) {
+           if (recentlyReadRef.current.has(text)) return; 
            recentlyReadRef.current.add(text);
-           
-           // Keep memory bank from growing infinitely (stores last 50 read posts)
            if (recentlyReadRef.current.size > 50) {
                const iterator = recentlyReadRef.current.values();
                recentlyReadRef.current.delete(iterator.next().value);
            }
         }
 
-        audioQueueRef.current.push({ text, forceApi });
+        // PRIORITY INTERRUPTION: If a live update arrives, stop any ICYMI immediately!
+        if (isLiveUpdate || forceApi) {
+            // Strip ICYMI items from the pending queue
+            audioQueueRef.current = audioQueueRef.current.filter(item => !item.isIcymi);
+            
+            // If we are CURRENTLY speaking an ICYMI, cancel it mid-sentence.
+            if (currentlyPlayingTypeRef.current === 'icymi' || forceApi) {
+                if (currentAudioRef.current) {
+                    currentAudioRef.current.onended = null; // Prevent double trigger
+                    currentAudioRef.current.pause();
+                    currentAudioRef.current = null;
+                }
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+                isSpeakingRef.current = false;
+                currentlyPlayingTypeRef.current = null;
+            }
+        }
+
+        audioQueueRef.current.push({ text, forceApi, isIcymi });
         processAudioQueue();
       }, [processAudioQueue]);
 
@@ -282,9 +327,6 @@
         e.preventDefault();
         if (isPreviewing) return;
         setIsPreviewing(true);
-        
-        // Temporarily clear queue to prioritize the preview
-        audioQueueRef.current = [];
         
         let textToRead = "This is a preview of the selected voice.";
         if (feedItems.length > 0) {
@@ -296,11 +338,57 @@
           textToRead = "Latest Update: " + title;
         }
         
-        speakText(textToRead, true);
+        speakText(textToRead, { forceApi: true });
         
-        // Simple timeout to reset button state
         setTimeout(() => setIsPreviewing(false), 2000); 
       };
+
+      // =====================================================================
+      // ICYMI Auto-Loop Watcher (Checks for dead air)
+      // =====================================================================
+      useEffect(() => {
+        if (!config.autoRead || !config.enableIcymi || feedItems.length === 0) return;
+
+        const interval = setInterval(() => {
+           // If we are currently talking or muted, push the timer back
+           if (isSpeakingRef.current || isGlobalMutedRef.current || audioQueueRef.current.length > 0) {
+               lastSpokenTimeRef.current = Date.now();
+               return;
+           }
+
+           const timeSinceLastSpoken = Date.now() - lastSpokenTimeRef.current;
+           const thresholdMs = config.icymiTime * 60 * 1000;
+
+           if (timeSinceLastSpoken >= thresholdMs) {
+               // Dead air detected! Grab a random recent story.
+               const recentItems = feedItems.slice(0, Math.min(15, feedItems.length)); 
+               const randomItem = recentItems[Math.floor(Math.random() * recentItems.length)];
+               
+               if (randomItem) {
+                   let textToRead = randomItem.title;
+                   if (config.removeText) {
+                       const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                       textToRead = textToRead.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
+                   }
+                   
+                   const icymiPrefixes = [
+                       "In case you missed it: ", 
+                       "Recapping today's top stories: ", 
+                       "Earlier today: ", 
+                       "A quick recap: ",
+                       "Catching you up: "
+                   ];
+                   const randomPrefix = icymiPrefixes[Math.floor(Math.random() * icymiPrefixes.length)];
+                   
+                   speakText(randomPrefix + textToRead, { isIcymi: true });
+                   lastSpokenTimeRef.current = Date.now(); // Reset timer
+               }
+           }
+        }, 10000); // Check every 10 seconds
+
+        return () => clearInterval(interval);
+      }, [config.autoRead, config.enableIcymi, config.icymiTime, config.removeText, feedItems, speakText]);
+
 
       // =====================================================================
       // Multi-Source Fetch & Scraping Engine
@@ -625,7 +713,9 @@
                                const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                                textToRead = textToRead.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
                            }
-                           speakText("Latest Update: " + textToRead);
+                           
+                           // Flag as a Live Update so it interrupts any playing ICYMI loops
+                           speakText("Latest Update: " + textToRead, { isLiveUpdate: true });
                        });
                    }
                }
@@ -670,6 +760,8 @@
             refreshRate: parseInt(params.get('refresh')) || 60,
             carouselMode: params.get('carousel') === 'true',
             autoRead: params.get('autoRead') === 'true',
+            enableIcymi: params.get('icymi') === 'true',
+            icymiTime: parseInt(params.get('icymiTime')) || 3,
             openAIVoice: params.get('openaiVoice') || 'alloy',
             seamless: params.get('seamless') === 'true',
           });
@@ -717,7 +809,7 @@
         const embedCode = `
 <!-- RSS Feed Widget -->
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
   width="${exportWidth}" 
   height="${exportHeight}" 
   frameborder="0" 
@@ -1385,6 +1477,27 @@
                             </div>
                             <p className="text-[11px] text-green-600 mt-2"><i className="fa-solid fa-shield-halved"></i> Audio generated securely via your Vercel backend.</p>
                           </div>
+                          
+                          {/* NEW: ICYMI Settings Block */}
+                          <div className="pt-2 border-t border-gray-100">
+                            <label className="flex items-center justify-between cursor-pointer">
+                              <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-rotate-left"></i> ICYMI Auto-Loop (Fills dead air)</span>
+                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.enableIcymi ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                <input type="checkbox" className="sr-only" checked={config.enableIcymi} onChange={(e) => setConfig({ ...config, enableIcymi: e.target.checked })} />
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.enableIcymi ? 'translate-x-4' : 'translate-x-1'}`} />
+                              </div>
+                            </label>
+                            
+                            {config.enableIcymi && (
+                                <div className="mt-4">
+                                  <div className="flex justify-between items-center mb-2">
+                                    <label className="text-xs font-medium text-gray-600">Minutes of silence before recap</label>
+                                    <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.icymiTime} min</span>
+                                  </div>
+                                  <input type="range" min="1" max="15" step="1" value={config.icymiTime} onChange={(e) => setConfig({ ...config, icymiTime: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1417,7 +1530,7 @@
                     
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
