@@ -98,7 +98,12 @@
 
     function App() {
       const [isEmbedMode, setIsEmbedMode] = useState(false);
+      
+      // Data Source States
+      const [sourceMode, setSourceMode] = useState('urls'); // 'urls' or 'topic'
       const [url, setUrl] = useState('');
+      const [topicQuery, setTopicQuery] = useState('');
+      
       const [isGenerating, setIsGenerating] = useState(false);
       const [isPreviewing, setIsPreviewing] = useState(false);
       const [feedItems, setFeedItems] = useState([]);
@@ -135,8 +140,8 @@
         tickerSpeed: 50,
         tickerCharLimit: 80,
         removeText: '', 
-        excludeKeywords: '', // NEW: Spam filter keywords
-        fallbackImage: '', // NEW: Fallback Image for text-only posts
+        excludeKeywords: '', // Spam filter keywords
+        fallbackImage: '', // Fallback Image for text-only posts
         refreshRate: 60, 
         carouselMode: false, 
         autoRead: false,
@@ -255,7 +260,7 @@
       const speakText = useCallback((text, forceApi = false) => {
         if (!text || (isGlobalMutedRef.current && !forceApi)) return;
         
-        // Anti-Duplicate Filter: Prevent reading the exact same string twice in a row (e.g., from an image album post)
+        // Anti-Duplicate Filter: Prevent reading the exact same string twice in a row
         if (!forceApi) {
            if (recentlyReadRef.current.has(text)) {
                return; // Silently discard the duplicate text
@@ -360,16 +365,28 @@
 
             const baseUrl = new URL(fetchUrl).origin;
             let items = [];
-            let sourceName = new URL(fetchUrl).hostname.replace('www.', '');
+            let globalSourceName = new URL(fetchUrl).hostname.replace('www.', '');
 
             if (isXML) {
                 // --- 1. Standard RSS / Atom XML Parser ---
                 const channelTitle = doc.querySelector('channel > title, feed > title');
-                if (channelTitle) sourceName = channelTitle.textContent.trim();
+                if (channelTitle) globalSourceName = channelTitle.textContent.trim();
                 
                 const nodes = doc.querySelectorAll('item, entry');
                 nodes.forEach(node => {
+                    let itemSourceName = globalSourceName;
+                    
+                    // Attempt to extract specific source name (Common in Google News RSS)
+                    const sourceEl = node.querySelector('source');
+                    if (sourceEl) itemSourceName = sourceEl.textContent.trim();
+
                     let title = node.querySelector('title')?.textContent?.trim() || '';
+                    
+                    // Clean Google News Titles (Removes the trailing " - Source Name")
+                    if (itemSourceName && title.endsWith(` - ${itemSourceName}`)) {
+                        title = title.substring(0, title.length - (` - ${itemSourceName}`).length);
+                    }
+
                     let rawDescription = node.querySelector('description, content, summary')?.textContent?.trim() || '';
                     
                     let linkNode = node.querySelector('link');
@@ -407,12 +424,12 @@
                     tempDiv.innerHTML = rawDescription;
                     let cleanDescription = tempDiv.textContent || tempDiv.innerText || '';
                     
-                    // Deduplicate title/description (common in Twitter RSS feeds)
+                    // Deduplicate title/description (common in Twitter/Google RSS feeds)
                     if (title && cleanDescription && cleanDescription.includes(title)) cleanDescription = '';
                     if (title && cleanDescription && title.includes(cleanDescription)) cleanDescription = '';
 
                     if (title || cleanDescription) {
-                        items.push({ id: Math.random().toString(), title: title || cleanDescription, link, description: title ? cleanDescription : '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
+                        items.push({ id: Math.random().toString(), title: title || cleanDescription, link, description: title ? cleanDescription : '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
                     }
                 });
             } else if (fetchUrl.includes('t.me/s/')) {
@@ -422,12 +439,13 @@
                   const textEl = msg.querySelector('.tgme_widget_message_text');
                   const dateLink = msg.querySelector('.tgme_widget_message_date');
                   
+                  let itemSourceName = globalSourceName;
                   const authorEl = msg.querySelector('.tgme_widget_message_owner_name span') || msg.querySelector('.tgme_widget_message_owner_name');
                   if (authorEl) {
-                      sourceName = authorEl.innerText.trim();
+                      itemSourceName = authorEl.innerText.trim();
                   } else {
                       const urlParts = new URL(fetchUrl).pathname.split('/').filter(Boolean);
-                      sourceName = urlParts[urlParts.length - 1] || 'Telegram';
+                      itemSourceName = urlParts[urlParts.length - 1] || 'Telegram';
                   }
 
                   if (textEl && dateLink) {
@@ -468,13 +486,14 @@
                        if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
                     }
                     
-                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
+                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
                   }
                 });
             } else if (htmlString.includes('timeline-item') && htmlString.includes('tweet-content')) {
                 // --- 3. Nitter / Xcancel HTML Parser ---
+                let itemSourceName = globalSourceName;
                 const profileNameEl = doc.querySelector('.profile-card-fullname');
-                if (profileNameEl) sourceName = profileNameEl.innerText.trim();
+                if (profileNameEl) itemSourceName = profileNameEl.innerText.trim();
 
                 const tweets = doc.querySelectorAll('.timeline-item:not(.show-more)');
                 tweets.forEach(tweet => {
@@ -513,7 +532,7 @@
                         }
                     }
 
-                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: sourceName });
+                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
                 });
             } else {
                 // --- 4. Generic HTML Parser Fallback ---
@@ -546,7 +565,7 @@
                        }
                     }
                     if (video) isVideo = true;
-                    items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: '', source: sourceName });
+                    items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: '', source: globalSourceName });
                   }
                 });
             }
@@ -613,7 +632,7 @@
 
                return uniqueItems;
             });
-            if (!isSilent) setInfoMsg(`Successfully merged and extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
+            if (!isSilent) setInfoMsg(`Successfully extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
           } else {
             throw new Error("Could not extract items. They may have been blocked by your filter.");
           }
@@ -676,7 +695,15 @@
 
       const handleGenerate = (e) => {
         e.preventDefault();
-        if (url) fetchFeedData(url, false);
+        
+        let target = url;
+        // Intercept Topic Search and covert to Google News URL
+        if (sourceMode === 'topic' && topicQuery) {
+            target = `https://news.google.com/rss/search?q=${encodeURIComponent(topicQuery)}`;
+            setUrl(target); // Sync state so the embed export utilizes the Google News URL
+        }
+        
+        if (target) fetchFeedData(target, false);
       };
 
       const handleCopyCode = () => {
@@ -1087,21 +1114,49 @@
                     <h2 className="font-semibold text-gray-800">Data Sources</h2>
                   </div>
                   <div className="p-5">
+                    
+                    {/* NEW: Source Mode Toggle */}
+                    <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+                      <button onClick={(e) => { e.preventDefault(); setSourceMode('urls'); }} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceMode === 'urls' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Direct URLs</button>
+                      <button onClick={(e) => { e.preventDefault(); setSourceMode('topic'); }} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceMode === 'topic' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Topic Search</button>
+                    </div>
+
                     <form onSubmit={handleGenerate} className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Target URLs</label>
-                        <textarea 
-                          placeholder="https://t.me/yourchannel&#10;https://t.me/anotherchannel" 
-                          value={url} 
-                          onChange={(e) => setUrl(e.target.value)} 
-                          className="w-full px-4 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y min-h-[80px]" 
-                          required 
-                        />
-                        <p className="text-xs text-gray-500 mt-2">Enter multiple URLs (one per line or comma-separated). Posts will be merged chronologically.</p>
-                      </div>
-                      <button type="submit" disabled={isGenerating || !url} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-2.5 rounded-lg font-medium transition-colors">
+                      
+                      {sourceMode === 'urls' ? (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Target URLs</label>
+                          <textarea 
+                            placeholder="https://t.me/yourchannel&#10;https://t.me/anotherchannel" 
+                            value={url} 
+                            onChange={(e) => setUrl(e.target.value)} 
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y min-h-[80px]" 
+                            required={sourceMode === 'urls'}
+                          />
+                          <p className="text-xs text-gray-500 mt-2">Enter multiple URLs (one per line or comma-separated). Posts will be merged chronologically.</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Search Keyword</label>
+                          <div className="relative">
+                             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                             <input 
+                               type="text" 
+                               placeholder="e.g., Artificial Intelligence, Tesla, Space" 
+                               value={topicQuery} 
+                               onChange={(e) => setTopicQuery(e.target.value)} 
+                               className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                               required={sourceMode === 'topic'}
+                             />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">Automatically streams global news on this topic using Google News.</p>
+                        </div>
+                      )}
+
+                      <button type="submit" disabled={isGenerating || (sourceMode === 'urls' ? !url : !topicQuery)} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-2.5 rounded-lg font-medium transition-colors">
                         {isGenerating ? <><i className="fa-solid fa-rotate fa-spin"></i> Extracting...</> : <><i className="fa-solid fa-rss"></i> Generate Feed</>}
                       </button>
+                      
                       {errorMsg && <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-amber-800 text-sm"><i className="fa-solid fa-circle-exclamation mt-0.5"></i><p>{errorMsg}</p></div>}
                       {infoMsg && <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-green-800 text-sm"><i className="fa-solid fa-circle-check mt-0.5"></i><p>{infoMsg}</p></div>}
                     </form>
