@@ -65,6 +65,24 @@
     };
 
     // =====================================================================
+    // Helper: Format Duration (Seconds to MM:SS)
+    // =====================================================================
+    const formatDuration = (seconds) => {
+        if (!seconds || isNaN(seconds)) return '00:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    // =====================================================================
+    // Helper: Cinematic Video Edge Mask
+    // =====================================================================
+    const videoMaskStyle = {
+        WebkitMaskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 80%, transparent 100%)',
+        maskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 80%, transparent 100%)'
+    };
+
+    // =====================================================================
     // Helper: Leaflet Map Component with Cinematic Auto-Tracking Alerts
     // =====================================================================
     const FeedMap = ({ items, theme, accentColor, onMarkerClick }) => {
@@ -221,7 +239,7 @@
         );
     };
 
-    const AutoPlayVideo = ({ src, poster, className }) => {
+    const AutoPlayVideo = ({ src, poster, className, style, onDurationReady }) => {
       const videoRef = useRef(null);
       
       useEffect(() => {
@@ -239,24 +257,31 @@
             playPromise.catch(error => console.log("Autoplay prevented:", error));
           }
         };
+        
+        const handleMetadata = () => {
+           if (onDurationReady && video.duration) {
+               onDurationReady(video.duration);
+           }
+           tryPlay();
+        };
 
         tryPlay();
         video.addEventListener('canplay', tryPlay);
-        video.addEventListener('loadedmetadata', tryPlay);
+        video.addEventListener('loadedmetadata', handleMetadata);
 
         return () => {
           video.removeEventListener('canplay', tryPlay);
-          video.removeEventListener('loadedmetadata', tryPlay);
+          video.removeEventListener('loadedmetadata', handleMetadata);
         };
-      }, [src]);
+      }, [src, onDurationReady]);
 
-      return <video ref={videoRef} src={src} poster={poster} referrerPolicy="no-referrer" autoPlay loop muted playsInline className={className} />;
+      return <video ref={videoRef} src={src} poster={poster} referrerPolicy="no-referrer" autoPlay loop muted playsInline className={className} style={style} />;
     };
 
     // =====================================================================
     // Helper: Embed Slideshow Player (Handles Autoplay Policies)
     // =====================================================================
-    const EmbedSlideshowPlayer = ({ currentItem, config, cleanText, onEnded }) => {
+    const EmbedSlideshowPlayer = ({ currentItem, config, cleanText, truncateText, onEnded }) => {
         const videoRef = useRef(null);
         const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
@@ -278,15 +303,18 @@
                     <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />
                 )}
                 
-                <video 
-                  ref={videoRef}
-                  key={currentItem.id} 
-                  src={currentItem.video} 
-                  autoPlay 
-                  muted={autoplayBlocked} 
-                  className="w-full h-full object-contain relative z-10"
-                  onEnded={onEnded}
-                />
+                <div className="absolute inset-0 flex items-center justify-center p-8 sm:p-16 z-[5]">
+                    <video 
+                      ref={videoRef}
+                      key={currentItem.id} 
+                      src={currentItem.video} 
+                      autoPlay 
+                      muted={autoplayBlocked} 
+                      className="max-w-full max-h-full object-contain drop-shadow-2xl"
+                      style={videoMaskStyle}
+                      onEnded={onEnded}
+                    />
+                </div>
 
                 {autoplayBlocked && (
                     <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -308,15 +336,21 @@
                         <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
                         {currentItem.source || 'BREAKING NEWS'}
                     </div>
-                    <h2 className="font-black mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentItem.title)}</h2>
-                    {currentItem.description && <p className="text-gray-200 opacity-90 line-clamp-2 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>{cleanText(currentItem.description)}</p>}
+                    <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
+                        {truncateText(cleanText(currentItem.title), config.broadcastDescLimit)}
+                    </h2>
+                    {currentItem.description && (
+                        <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
+                            {truncateText(cleanText(currentItem.description), config.broadcastDescLimit)}
+                        </p>
+                    )}
                 </div>
             </div>
         );
     };
 
     const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
-    const hostUrl = isLocalFile ? 'https://rss-chi-five.vercel.app' : ''; 
+    const hostUrl = isLocalFile ? 'https://YOUR_VERCEL_PROJECT_URL.vercel.app' : ''; 
     const myBackendUrl = `${hostUrl}/api/fetch`; 
     const myTtsUrl = `${hostUrl}/api/tts`;
 
@@ -355,6 +389,7 @@
 
       // Selected Videos State for Slideshow Mode
       const [selectedVideos, setSelectedVideos] = useState([]);
+      const [videoDurations, setVideoDurations] = useState({});
       const [embedSlideshowIndex, setEmbedSlideshowIndex] = useState(0);
       const [slideshowPreviewIndex, setSlideshowPreviewIndex] = useState(0);
 
@@ -367,7 +402,7 @@
         accentColor: '#3b82f6',
         showImages: true,
         showDescription: true,
-        maxItems: 15,
+        maxItems: 50, 
         tickerSpeed: 50,
         tickerCharLimit: 80,
         removeText: '', 
@@ -383,6 +418,7 @@
         seamless: false, 
         broadcastScale: 100, 
         broadcastTextScale: 100, 
+        broadcastDescLimit: 150,
         broadcastBgImage: '',
         broadcastBgOpacity: 50,
         filterDate: new Date().toISOString().split('T')[0], // Default to today
@@ -648,11 +684,11 @@
             let htmlString = '';
             const encodedTarget = encodeURIComponent(fetchUrl);
             
-            // For Telegram we will fetch up to 3 pages to ensure we get a large pool of daily videos
+            // INCREASED PAGINATION: Fetch up to 8 pages of Telegram to ensure high video volume
             if (fetchUrl.includes('t.me/s/')) {
                 let currentUrl = fetchUrl;
                 let pagesFetched = 0;
-                const maxTelegramPages = 3; // Grabs ~60 posts total
+                const maxTelegramPages = 8; // Grabs ~160 posts total
                 let telegramItems = [];
 
                 while (currentUrl && pagesFetched < maxTelegramPages) {
@@ -740,10 +776,12 @@
                       }
                     });
 
-                    // Pagination check
-                    const moreBtn = doc.querySelector('.tme_messages_more');
-                    if (moreBtn && moreBtn.getAttribute('href')) {
-                        const nextPath = moreBtn.getAttribute('href');
+                    // Reliable Pagination check for Telegram
+                    const moreBtn = doc.querySelector('.tme_messages_more') || doc.querySelector('a.tme_messages_more');
+                    let nextPath = null;
+                    if (moreBtn) nextPath = moreBtn.getAttribute('href') || moreBtn.dataset?.more;
+
+                    if (nextPath) {
                         currentUrl = nextPath.startsWith('http') ? nextPath : `https://t.me${nextPath}`;
                     } else {
                         currentUrl = null;
@@ -753,7 +791,6 @@
                 return telegramItems;
             }
 
-            // If not telegram, just fetch normally once
             try {
               const response = await fetch(`${myBackendUrl}?url=${encodedTarget}`, { cache: 'no-store' });
               if (!response.ok) throw new Error('Backend failed');
@@ -981,11 +1018,14 @@
                        const kwRequired = currentKeyword ? currentKeyword.toLowerCase() : '';
 
                        [...newItems].reverse().forEach(item => {
-                           // Apply background TTS Filters
+                           // Offset fix for Date matching
                            if (currentDate) {
                                if (!item.time) return;
                                const d = new Date(item.time);
-                               if (!isNaN(d.getTime()) && d.toISOString().split('T')[0] !== currentDate) return;
+                               if (!isNaN(d.getTime())) {
+                                   const localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                                   if (localDateStr !== currentDate) return;
+                               }
                            }
                            
                            const textContent = (item.title + " " + item.description).toLowerCase();
@@ -1048,7 +1088,7 @@
             accentColor: params.get('color') || '#3b82f6',
             showImages: params.get('imgs') !== 'false',
             showDescription: params.get('desc') !== 'false',
-            maxItems: parseInt(params.get('limit')) || 15,
+            maxItems: parseInt(params.get('limit')) || 50,
             tickerSpeed: params.get('speed') !== null ? parseInt(params.get('speed')) : 50,
             tickerCharLimit: parseInt(params.get('chars')) || 80,
             removeText: params.get('remove') ? decodeURIComponent(params.get('remove')) : '', 
@@ -1064,6 +1104,7 @@
             seamless: params.get('seamless') === 'true',
             broadcastScale: parseInt(params.get('bScale')) || 100,
             broadcastTextScale: parseInt(params.get('bTScale')) || 100,
+            broadcastDescLimit: parseInt(params.get('bDescLmt')) || 150,
             broadcastBgImage: params.get('bBgImg') ? decodeURIComponent(params.get('bBgImg')) : '',
             broadcastBgOpacity: params.get('bBgOp') ? parseInt(params.get('bBgOp')) : 50,
             filterDate: params.get('fDate') !== null ? params.get('fDate') : new Date().toISOString().split('T')[0],
@@ -1109,7 +1150,7 @@
 
         const embedCode = `
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" 
   width="${exportWidth}" 
   height="${exportHeight}" 
   frameborder="0" 
@@ -1136,6 +1177,12 @@
         if (!str || !config.removeText) return str;
         const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         return str.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
+      };
+
+      const truncateText = (str, limit) => {
+        if (!str) return '';
+        if (str.length <= limit) return str;
+        return str.substring(0, limit) + '...';
       };
 
       const timeAgo = (dateString) => {
@@ -1167,7 +1214,8 @@
               if (!item.time) return false;
               const d = new Date(item.time);
               if (isNaN(d.getTime())) return false; 
-              return d.toISOString().split('T')[0] === config.filterDate;
+              const localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+              return localDateStr === config.filterDate;
           });
       }
       
@@ -1244,20 +1292,23 @@
                       <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />
                   )}
                   
-                  <video 
-                    key={currentItem.id} 
-                    src={currentItem.video} 
-                    controls={false} // Hidden for clean broadcast
-                    autoPlay 
-                    className="w-full h-full object-contain relative z-10"
-                    onEnded={() => {
-                        if (lightbox.currentIndex < lightbox.items.length - 1) {
-                            setLightbox({ ...lightbox, currentIndex: lightbox.currentIndex + 1 });
-                        } else {
-                            setLightbox({ ...lightbox, currentIndex: 0 }); // Auto Loop
-                        }
-                    }}
-                  />
+                  <div className="absolute inset-0 flex items-center justify-center p-8 sm:p-16 z-[5]">
+                      <video 
+                        key={currentItem.id} 
+                        src={currentItem.video} 
+                        controls={false} 
+                        autoPlay 
+                        className="max-w-full max-h-full object-contain drop-shadow-2xl"
+                        style={videoMaskStyle}
+                        onEnded={() => {
+                            if (lightbox.currentIndex < lightbox.items.length - 1) {
+                                setLightbox({ ...lightbox, currentIndex: lightbox.currentIndex + 1 });
+                            } else {
+                                setLightbox({ ...lightbox, currentIndex: 0 }); // Auto Loop
+                            }
+                        }}
+                      />
+                  </div>
                   
                   {/* Lower Third Broadcast Graphic */}
                   <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-6 rounded-r-2xl text-white shadow-2xl pointer-events-none z-20"
@@ -1266,8 +1317,14 @@
                           <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
                           {currentItem.source || 'BREAKING NEWS'}
                       </div>
-                      <h2 className="font-black mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentItem.title)}</h2>
-                      {currentItem.description && <p className="text-gray-200 opacity-90 line-clamp-2 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>{cleanText(currentItem.description)}</p>}
+                      <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
+                          {truncateText(cleanText(currentItem.title), config.broadcastDescLimit)}
+                      </h2>
+                      {currentItem.description && (
+                          <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
+                              {truncateText(cleanText(currentItem.description), config.broadcastDescLimit)}
+                          </p>
+                      )}
                   </div>
 
                   {/* Progress Bar overlay */}
@@ -1361,6 +1418,7 @@
                            currentItem={videoItems[embedSlideshowIndex % videoItems.length]} 
                            config={config} 
                            cleanText={cleanText}
+                           truncateText={truncateText}
                            onEnded={() => setEmbedSlideshowIndex(prev => prev + 1)} 
                        />;
             })()}
@@ -1501,7 +1559,7 @@
 
                   {config.carouselMode && displayItems.length > 1 && (
                     <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
-                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
                       <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
@@ -1933,6 +1991,13 @@
                           <input type="range" min="50" max="200" step="5" value={config.broadcastTextScale} onChange={(e) => setConfig({ ...config, broadcastTextScale: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                         </div>
                         <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-1"><i className="fa-solid fa-align-left"></i> Post Text Character Limit</label>
+                            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.broadcastDescLimit}</span>
+                          </div>
+                          <input type="range" min="0" max="500" step="10" value={config.broadcastDescLimit} onChange={(e) => setConfig({ ...config, broadcastDescLimit: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                        </div>
+                        <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-regular fa-image"></i> Lightbox Background Image</label>
                           <input type="url" placeholder="https://example.com/bg.jpg" value={config.broadcastBgImage} onChange={(e) => setConfig({ ...config, broadcastBgImage: e.target.value })} className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" />
                         </div>
@@ -1973,7 +2038,7 @@
                               <label className="text-sm font-medium text-gray-700">Max Items</label>
                               <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.maxItems}</span>
                             </div>
-                            <input type="range" min="1" max="15" step="1" value={config.maxItems} onChange={(e) => setConfig({ ...config, maxItems: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                            <input type="range" min="1" max="100" step="1" value={config.maxItems} onChange={(e) => setConfig({ ...config, maxItems: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                           </div>
                         </div>
                     )}
@@ -2080,7 +2145,7 @@
                     
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -2151,13 +2216,18 @@
                                 else setSelectedVideos(videoItems.map(i => i.id));
                             };
                             
+                            const selectedDuration = selectedVideos.reduce((acc, id) => acc + (videoDurations[id] || 0), 0);
+
                             return (
                                 <div className={`w-full h-full flex flex-col relative ${config.seamless ? 'p-0' : 'p-4'}`}>
                                     
                                     {/* PREVIEW WINDOW */}
-                                    <div className="w-full aspect-video bg-gray-900 relative mb-4 rounded-xl overflow-hidden shadow-lg border border-gray-700 shrink-0">
+                                    <div className="w-full aspect-video bg-gray-900 relative mb-4 rounded-xl overflow-hidden shadow-lg border border-gray-700 shrink-0 flex items-center justify-center p-4">
                                         {config.broadcastBgImage && <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />}
-                                        <video src={currentPreview.video} autoPlay loop muted playsInline className="w-full h-full object-contain relative z-10" />
+                                        
+                                        <div className="absolute inset-0 z-10 pointer-events-none shadow-[inset_0_0_200px_rgba(0,0,0,0.9)]"></div>
+
+                                        <video src={currentPreview.video} autoPlay loop muted playsInline className="max-w-full max-h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} />
                                         
                                         <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-3 sm:p-5 rounded-r-xl text-white shadow-2xl pointer-events-none z-20"
                                              style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
@@ -2165,39 +2235,55 @@
                                                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                                                 {currentPreview.source || 'BREAKING NEWS'}
                                             </div>
-                                            <h2 className="font-black mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentPreview.title)}</h2>
-                                            {currentPreview.description && <p className="text-gray-200 opacity-90 line-clamp-2 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentPreview.description)}</p>}
+                                            <h2 className="font-bold mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.title), config.broadcastDescLimit)}</h2>
+                                            {currentPreview.description && <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description), config.broadcastDescLimit)}</p>}
                                         </div>
                                         <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm z-30 font-medium">Broadcast Preview</div>
                                     </div>
 
                                     {/* GRID HEADER */}
                                     <div className="flex justify-between items-center mb-3 px-1 shrink-0">
-                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Available Videos ({videoItems.length})</span>
+                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center">
+                                            Available Videos ({videoItems.length})
+                                            {selectedVideos.length > 0 && (
+                                                <span className="ml-3 text-blue-600 font-black tracking-widest bg-blue-50/80 px-2 py-1 rounded shadow-sm border border-blue-100">EST. TIME: {formatDuration(selectedDuration)}</span>
+                                            )}
+                                        </span>
                                         <button onClick={handleSelectAll} className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors shadow-sm border border-blue-200">
                                             {allSelected ? 'Deselect All' : 'Select All'}
                                         </button>
                                     </div>
 
                                     {/* GRID */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pb-24 embed-scroll flex-1">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pb-24 embed-scroll flex-1 content-start p-1">
                                         {videoItems.map((item, idx) => {
                                             const isSelected = selectedVideos.includes(item.id);
                                             return (
                                                 <div key={item.id} 
                                                      onClick={(e) => { e.preventDefault(); toggleVideoSelection(item.id); }}
                                                      onMouseEnter={() => setSlideshowPreviewIndex(idx)}
-                                                     className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all ${isSelected ? 'border-blue-500 scale-[0.98] shadow-md' : 'border-transparent hover:border-gray-400'}`}>
+                                                     className={`relative flex flex-col cursor-pointer rounded-xl overflow-hidden border-2 transition-all min-h-[120px] ${isSelected ? 'border-blue-500 scale-[0.98] shadow-md' : 'border-transparent hover:border-gray-400 bg-gray-100 dark:bg-slate-800'}`}>
                                                     
                                                     <div className="absolute top-2 left-2 z-20 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm transition-colors">
                                                         {isSelected && <i className="fa-solid fa-check text-blue-600 text-sm"></i>}
                                                     </div>
                                                     
-                                                    <div className="w-full h-24 sm:h-32 bg-black relative pointer-events-none">
-                                                        <AutoPlayVideo src={item.video} poster={item.image} className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-60'}`} />
+                                                    <div className="w-full aspect-video bg-black relative pointer-events-none shrink-0">
+                                                        <AutoPlayVideo 
+                                                            src={item.video} 
+                                                            poster={item.image} 
+                                                            className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-60'}`}
+                                                            onDurationReady={(dur) => {
+                                                                setVideoDurations(prev => {
+                                                                    if (prev[item.id] === dur) return prev;
+                                                                    return { ...prev, [item.id]: dur };
+                                                                });
+                                                            }} 
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                                                     </div>
-                                                    <div className="absolute bottom-0 left-0 right-0 p-2 pt-6 bg-gradient-to-t from-black to-transparent text-white pointer-events-none">
-                                                        <div className="text-xs font-medium line-clamp-2 leading-tight drop-shadow-md">{cleanText(item.title)}</div>
+                                                    <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none">
+                                                        <div className="text-xs font-medium line-clamp-2 leading-tight text-white drop-shadow-md">{cleanText(item.title)}</div>
                                                     </div>
                                                 </div>
                                             );
@@ -2281,13 +2367,13 @@
 
                               {config.carouselMode && displayItems.length > 1 && (
                                 <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                   </button>
                                   <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                     {activeCarouselIndex + 1} / {displayItems.length}
                                   </span>
-                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
                                   </button>
                                 </div>
