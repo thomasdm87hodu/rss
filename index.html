@@ -5,22 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FeedWeaver - RSS Widget Generator</title>
   
-  <!-- Load Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Load FontAwesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Load Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Load React & ReactDOM -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   
-  <!-- Load Babel to translate JSX in the browser -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
@@ -30,14 +28,199 @@
     const { useState, useEffect, useCallback, useRef } = React;
 
     const MOCK_DATA = [
-      { id: '1', title: 'The Future of AI in Web Development', link: '#', description: 'Discover how artificial intelligence is shaping the way we build and design websites in 2026 and beyond.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 5 * 60000).toISOString(), source: 'TechInsider' },
-      { id: '2', title: '10 Essential Tailwind CSS Patterns', link: '#', description: 'A comprehensive guide to reusable utility-class patterns that will speed up your workflow and reduce CSS bloat.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 120 * 60000).toISOString(), source: 'DesignWeekly' },
-      { id: '3', title: 'Next-Generation JavaScript Features', link: '#', description: 'An overview of the latest ECMAScript proposals and how they can simplify your everyday coding tasks.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date(Date.now() - 1440 * 60000).toISOString(), source: 'CodeDaily' },
+      { id: '1', title: 'Explosions heard near Isfahan facility', link: '#', description: 'Reports of drone activity and loud explosions near the Iranian city of Isfahan.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date().toISOString(), source: 'Global Intel' },
+      { id: '2', title: 'Sirens sound across Tel Aviv metropolitan area', link: '#', description: 'Incoming rocket sirens have been activated across central Israel, including Tel Aviv.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date().toISOString(), source: 'Local News' },
+      { id: '3', title: 'Heavy strikes reported in southern Beirut suburbs', link: '#', description: 'Extensive damage reported following a series of strikes in the Dahieh suburb of Beirut.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date().toISOString(), source: 'Regional Updates' },
+      { id: '4', title: 'French Rafale jets intercept Iranian drones targeting UAE', link: '#', description: 'France mobilized its permanently stationed Dassault Rafale fighter jets from Al Dhafra Air Base near Abu Dhabi for intensified patrols.', image: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date().toISOString(), source: 'Breaking Israel News' },
     ];
 
     // =====================================================================
-    // Helper: Force Autoplay Video Component to bypass strict browser policies
+    // HOTZONE DICTIONARY
     // =====================================================================
+    const HOTZONES = {
+        "Tehran": [35.6892, 51.3890], "Isfahan": [32.6539, 51.6660], "Kharg Island": [29.2333, 50.3167],
+        "Bandar Abbas": [29.1833, 56.2667], "Kermanshah": [34.3142, 47.0650], "Shiraz": [29.5918, 52.5836],
+        "Tabriz": [38.0700, 46.2919], "Natanz": [33.5833, 51.9333], "Qom": [34.6401, 50.8764], "Bushehr": [28.9234, 50.8203],
+        "Tel Aviv": [32.0853, 34.7818], "Jerusalem": [31.7683, 35.2137], "Gaza": [31.5017, 34.4668],
+        "Haifa": [32.7940, 34.9896], "Eilat": [29.5581, 34.9482], "Ashkelon": [31.6693, 34.5715],
+        "Ashdod": [31.8014, 34.6435], "Sderot": [31.5235, 34.5956], "Rafah": [31.2804, 34.2595],
+        "West Bank": [32.0000, 35.2500], "Golan Heights": [33.0000, 35.7500], "Tiberias": [32.7940, 35.5331],
+        "Safed": [32.9646, 35.4960], "Beersheba": [31.2518, 34.7913], "Negev": [30.5000, 34.8333],
+        "Beirut": [33.8938, 35.5018], "Dahieh": [33.8443, 35.5085], "Tyre": [33.2705, 35.1963],
+        "Sidon": [33.5571, 35.3729], "Baalbek": [34.0058, 36.2181], "Nabatieh": [33.3772, 35.4838],
+        "Bekaa Valley": [33.9984, 36.1469], "Marjayoun": [33.3606, 35.5900], "Litani": [33.3323, 35.2513],
+        "Damascus": [33.5138, 36.2765], "Aleppo": [36.2012, 37.1612], "Homs": [34.7324, 36.7137],
+        "Latakia": [35.5206, 35.7772], "Tartus": [34.8890, 35.8866], "Palmyra": [34.5504, 38.2810],
+        "Deir ez-Zor": [35.3353, 40.1436], "Idlib": [35.9306, 36.6339], "Quneitra": [33.1256, 35.8236],
+        "Sanaa": [15.3694, 44.1910], "Hodeidah": [14.7978, 42.9545], "Aden": [12.8000, 45.0333],
+        "Taiz": [13.5795, 44.0205], "Red Sea": [20.0000, 38.0000], "Gulf of Aden": [12.0000, 48.0000],
+        "Bab el-Mandeb": [12.5833, 43.3333], "Baghdad": [33.3152, 44.3661], "Erbil": [36.1901, 44.0090],
+        "Basra": [30.5081, 47.7835], "Al Asad": [33.7946, 42.4369], "Mosul": [36.3400, 43.1300],
+        "Kirkuk": [35.4681, 44.3922], "Camp Taji": [33.5350, 44.2540], "Abu Dhabi": [24.4539, 54.3773],
+        "Dubai": [25.2048, 55.2708], "UAE": [23.4241, 53.8478], "United Arab Emirates": [23.4241, 53.8478],
+        "Al Dhafra": [24.2483, 54.5476], "Persian Gulf": [26.0000, 52.0000], "Amman": [31.9522, 35.9334],
+        "Aqaba": [29.5267, 35.0078], "Zarqa": [32.0728, 36.0880], "Cairo": [30.0444, 31.2357],
+        "Sinai": [29.5000, 33.8333], "Suez": [29.9668, 32.5498], "Riyadh": [24.7136, 46.6753],
+        "Jeddah": [21.4858, 39.1925]
+    };
+
+    // =====================================================================
+    // Helper: Leaflet Map Component with Cinematic Auto-Tracking Alerts
+    // =====================================================================
+    const FeedMap = ({ items, theme, accentColor, onMarkerClick }) => {
+        const mapRef = useRef(null);
+        const mapInstance = useRef(null);
+        const markersLayerRef = useRef(null);
+        const prevFirstItemId = useRef(null);
+        
+        const [flashAlert, setFlashAlert] = useState(null);
+
+        useEffect(() => {
+            if (!mapRef.current) return;
+
+            if (!mapInstance.current) {
+                mapInstance.current = L.map(mapRef.current, { zoomControl: false }).setView([32.5, 43.0], 5);
+                markersLayerRef.current = L.layerGroup().addTo(mapInstance.current);
+            }
+
+            const isDark = theme === 'dark';
+            const tileUrl = isDark 
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+            
+            mapInstance.current.eachLayer((layer) => {
+                if (layer instanceof L.TileLayer) {
+                    mapInstance.current.removeLayer(layer);
+                }
+            });
+
+            L.tileLayer(tileUrl, {
+                attribution: '&copy; OpenStreetMap',
+                subdomains: 'abcd',
+                maxZoom: 10
+            }).addTo(mapInstance.current);
+
+            markersLayerRef.current.clearLayers();
+
+            const pulseIcon = L.divIcon({
+                className: 'custom-pulse-marker',
+                html: `<div style="background-color: ${accentColor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${accentColor}; position: relative;">
+                         <div style="position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px; border-radius: 50%; border: 2px solid ${accentColor}; animation: pulse 1.5s infinite;"></div>
+                       </div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            const plottedLocations = new Set();
+            let latestPlottedZone = null;
+            let latestPlottedCoords = null;
+            let latestPlottedMarker = null;
+
+            items.forEach((item, idx) => {
+                const fullText = (item.title + " " + item.description).toLowerCase();
+                let hasPlotted = false;
+                
+                const sortedZones = Object.keys(HOTZONES).sort((a, b) => b.length - a.length);
+                
+                for (const zone of sortedZones) {
+                    if (hasPlotted) break; 
+
+                    const zoneRegex = new RegExp(`\\b${zone.toLowerCase()}\\b`, 'i');
+                    
+                    if (zoneRegex.test(fullText)) {
+                        hasPlotted = true;
+                        let [lat, lng] = HOTZONES[zone];
+                        const locKey = `${lat}-${lng}`;
+                        
+                        if (plottedLocations.has(locKey)) {
+                            lat += (Math.random() - 0.5) * 0.05;
+                            lng += (Math.random() - 0.5) * 0.05;
+                        }
+                        plottedLocations.add(locKey);
+
+                        const marker = L.marker([lat, lng], { icon: pulseIcon }).addTo(markersLayerRef.current);
+                        
+                        const popupContent = document.createElement('div');
+                        popupContent.className = `p-2 ${isDark ? 'text-white' : 'text-gray-800'}`;
+                        popupContent.innerHTML = `
+                            <div class="text-xs font-bold uppercase tracking-wider mb-1 opacity-70 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} pb-1">${zone} Event</div>
+                            <h4 class="font-bold text-sm leading-snug mb-2 mt-2">${item.title}</h4>
+                            <button class="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors" onclick="window.triggerMapLightbox('${item.id}')">View Details</button>
+                        `;
+                        
+                        marker.bindPopup(popupContent, { 
+                            className: isDark ? 'dark-leaflet-popup' : '',
+                            maxWidth: 250
+                        });
+
+                        if (idx === 0) {
+                            latestPlottedZone = zone;
+                            latestPlottedCoords = [lat, lng];
+                            latestPlottedMarker = marker;
+                        }
+                    }
+                }
+            });
+
+            if (items.length > 0 && items[0].id !== prevFirstItemId.current) {
+                prevFirstItemId.current = items[0].id;
+                
+                if (latestPlottedZone && latestPlottedCoords) {
+                    setFlashAlert({ zone: latestPlottedZone, title: items[0].title });
+                    
+                    mapInstance.current.flyTo(latestPlottedCoords, 6, {
+                        animate: true,
+                        duration: 1.5
+                    });
+                    
+                    setTimeout(() => {
+                        if (latestPlottedMarker) latestPlottedMarker.openPopup();
+                    }, 1500);
+
+                    setTimeout(() => {
+                        setFlashAlert(null);
+                    }, 6000);
+                }
+            }
+
+            if (!document.getElementById('leaflet-pulse-css')) {
+                const style = document.createElement('style');
+                style.id = 'leaflet-pulse-css';
+                style.innerHTML = `
+                    @keyframes pulse {
+                        0% { transform: scale(0.9); opacity: 1; }
+                        100% { transform: scale(2.5); opacity: 0; }
+                    }
+                    .dark-leaflet-popup .leaflet-popup-content-wrapper { background-color: #1e293b; color: white; border: 1px solid #374151; }
+                    .dark-leaflet-popup .leaflet-popup-tip { background-color: #1e293b; border: 1px solid #374151; }
+                `;
+                document.head.appendChild(style);
+            }
+
+        }, [items, theme, accentColor]);
+
+        return (
+            <div className="w-full h-full relative rounded-inherit overflow-hidden">
+                <div ref={mapRef} className="w-full h-full z-0" />
+                
+                {flashAlert && (
+                    <div className="absolute inset-0 z-[1000] pointer-events-none flex flex-col items-center justify-start pt-12 transition-all">
+                        <div className="absolute inset-0 bg-red-600/10 animate-pulse"></div>
+                        <div className="bg-red-600/90 backdrop-blur-sm text-white px-6 py-4 rounded-xl shadow-2xl flex flex-col items-center border border-red-400 animate-bounce relative z-10 mx-4">
+                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-2xl mb-1 drop-shadow-md">
+                                <i className="fa-solid fa-satellite-dish animate-pulse"></i>
+                                BREAKING: {flashAlert.zone}
+                            </div>
+                            <div className="text-sm font-medium text-center max-w-lg line-clamp-2 drop-shadow-sm">
+                                {flashAlert.title}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     const AutoPlayVideo = ({ src, poster, className }) => {
       const videoRef = useRef(null);
       
@@ -45,7 +228,6 @@
         const video = videoRef.current;
         if (!video) return;
 
-        // Force muted attributes directly onto the DOM node
         video.muted = true;
         video.defaultMuted = true;
         video.setAttribute('playsinline', '');
@@ -54,16 +236,11 @@
         const tryPlay = () => {
           const playPromise = video.play();
           if (playPromise !== undefined) {
-            playPromise.catch(error => {
-              console.log("Autoplay prevented:", error);
-            });
+            playPromise.catch(error => console.log("Autoplay prevented:", error));
           }
         };
 
-        // Try playing immediately
         tryPlay();
-
-        // Also try playing the exact moment the video data is ready
         video.addEventListener('canplay', tryPlay);
         video.addEventListener('loadedmetadata', tryPlay);
 
@@ -73,24 +250,71 @@
         };
       }, [src]);
 
-      return (
-        <video 
-          ref={videoRef}
-          src={src} 
-          poster={poster}
-          referrerPolicy="no-referrer" 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className={className} 
-        />
-      );
+      return <video ref={videoRef} src={src} poster={poster} referrerPolicy="no-referrer" autoPlay loop muted playsInline className={className} />;
     };
 
     // =====================================================================
-    // Dynamic Endpoint Resolution (Prevents "Failed to fetch" errors)
+    // Helper: Embed Slideshow Player (Handles Autoplay Policies)
     // =====================================================================
+    const EmbedSlideshowPlayer = ({ currentItem, config, cleanText, onEnded }) => {
+        const videoRef = useRef(null);
+        const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+
+        useEffect(() => {
+            if (videoRef.current) {
+                const playPromise = videoRef.current.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.warn("Unmuted autoplay blocked by browser policy. User interaction required:", error);
+                        setAutoplayBlocked(true);
+                    });
+                }
+            }
+        }, [currentItem]);
+
+        return (
+            <div className="w-full h-screen bg-black relative flex items-center justify-center overflow-hidden">
+                {config.broadcastBgImage && (
+                    <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />
+                )}
+                
+                <video 
+                  ref={videoRef}
+                  key={currentItem.id} 
+                  src={currentItem.video} 
+                  autoPlay 
+                  muted={autoplayBlocked} 
+                  className="w-full h-full object-contain relative z-10"
+                  onEnded={onEnded}
+                />
+
+                {autoplayBlocked && (
+                    <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <button onClick={() => {
+                            if(videoRef.current) {
+                                videoRef.current.muted = false;
+                                videoRef.current.play();
+                            }
+                            setAutoplayBlocked(false);
+                        }} className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold text-xl flex items-center gap-3 shadow-2xl transition-transform hover:scale-105 cursor-pointer">
+                            <i className="fa-solid fa-play"></i> Click to Start Broadcast
+                        </button>
+                    </div>
+                )}
+                
+                <div className="absolute bottom-12 left-12 max-w-3xl bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-6 rounded-r-2xl text-white shadow-2xl pointer-events-none z-20"
+                     style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
+                    <div className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                        {currentItem.source || 'BREAKING NEWS'}
+                    </div>
+                    <h2 className="font-black mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentItem.title)}</h2>
+                    {currentItem.description && <p className="text-gray-200 opacity-90 line-clamp-2 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>{cleanText(currentItem.description)}</p>}
+                </div>
+            </div>
+        );
+    };
+
     const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
     const hostUrl = isLocalFile ? 'https://rss-chi-five.vercel.app' : ''; 
     const myBackendUrl = `${hostUrl}/api/fetch`; 
@@ -99,8 +323,7 @@
     function App() {
       const [isEmbedMode, setIsEmbedMode] = useState(false);
       
-      // Data Source States
-      const [sourceMode, setSourceMode] = useState('urls'); // 'urls' or 'topic'
+      const [sourceMode, setSourceMode] = useState('urls'); 
       const [url, setUrl] = useState('');
       const [topicQuery, setTopicQuery] = useState('');
       
@@ -114,25 +337,29 @@
       const [carouselIndex, setCarouselIndex] = useState(0);
       const [lightbox, setLightbox] = useState(null);
 
-      // Export Widget Dimensions
       const [exportWidth, setExportWidth] = useState('100%');
       const [exportHeight, setExportHeight] = useState('500px');
 
-      // TTS Mute State & Queue System
       const [isGlobalMuted, setIsGlobalMuted] = useState(false);
       const isGlobalMutedRef = useRef(false);
       
-      const audioQueueRef = useRef([]); // The queue holds pending audio texts
-      const isSpeakingRef = useRef(false); // Lock to prevent overlapping audio
+      const audioQueueRef = useRef([]); 
+      const isSpeakingRef = useRef(false); 
       const currentAudioRef = useRef(null);
-      const recentlyReadRef = useRef(new Set()); // Memory bank to prevent reading exact duplicates
+      const recentlyReadRef = useRef(new Set()); 
       
-      // ICYMI / Interruption Tracking Refs
-      const currentlyPlayingTypeRef = useRef(null); // 'live' | 'icymi' | null
-      const lastSpokenTimeRef = useRef(Date.now()); // Tracks dead air time
+      const currentlyPlayingTypeRef = useRef(null); 
+      const lastSpokenTimeRef = useRef(Date.now()); 
+      
+      const processedItemsRef = useRef([]);
+
+      // Selected Videos State for Slideshow Mode
+      const [selectedVideos, setSelectedVideos] = useState([]);
+      const [embedSlideshowIndex, setEmbedSlideshowIndex] = useState(0);
+      const [slideshowPreviewIndex, setSlideshowPreviewIndex] = useState(0);
 
       const [config, setConfig] = useState({
-        layout: 'list',
+        layout: 'list', 
         theme: 'light',
         bgColor: '#ffffff',
         cardBgColor: '#f8fafc',
@@ -140,26 +367,45 @@
         accentColor: '#3b82f6',
         showImages: true,
         showDescription: true,
-        maxItems: 5,
+        maxItems: 15,
         tickerSpeed: 50,
         tickerCharLimit: 80,
         removeText: '', 
-        excludeKeywords: '', // Spam filter keywords
-        whitelistSources: '', // Only show news from these sources
-        fallbackImage: '', // Fallback Image for text-only posts
+        excludeKeywords: '', 
+        whitelistSources: '', 
+        fallbackImage: '', 
         refreshRate: 60, 
         carouselMode: false, 
         autoRead: false,
-        enableIcymi: false, // ICYMI Auto-Loop
-        icymiTime: 3,       // Minutes of silence before ICYMI kicks in
+        enableIcymi: false, 
+        icymiTime: 3,       
         openAIVoice: 'alloy', 
         seamless: false, 
+        broadcastScale: 100, 
+        broadcastTextScale: 100, 
+        broadcastBgImage: '',
+        broadcastBgOpacity: 50,
+        filterDate: new Date().toISOString().split('T')[0], // Default to today
+        filterKeyword: '', 
       });
 
       const configRef = useRef(config);
       useEffect(() => {
         configRef.current = config;
       }, [config]);
+
+      useEffect(() => {
+          window.triggerMapLightbox = (itemId) => {
+              const item = feedItems.find(i => i.id === itemId);
+              if (item) {
+                  const resolvedImage = item.image || configRef.current.fallbackImage;
+                  if (item.video) setLightbox({type: 'video', url: item.video});
+                  else if (item.isVideo) setLightbox({type: 'iframe', url: item.embedUrl});
+                  else if (resolvedImage) setLightbox({type: 'image', url: resolvedImage});
+                  else setLightbox({type: 'text', data: item}); 
+              }
+          };
+      }, [feedItems]);
 
       useEffect(() => {
         if (config.layout === 'ticker') setExportHeight('60px');
@@ -174,9 +420,8 @@
         isGlobalMutedRef.current = !isGlobalMutedRef.current;
         setIsGlobalMuted(isGlobalMutedRef.current);
         
-        // Immediately stop any currently playing audio and clear queue
         if (isGlobalMutedRef.current) {
-          audioQueueRef.current = []; // Clear the queue so it doesn't resume later
+          audioQueueRef.current = []; 
           isSpeakingRef.current = false;
           currentlyPlayingTypeRef.current = null;
           
@@ -185,28 +430,22 @@
             currentAudioRef.current.pause();
             currentAudioRef.current = null;
           }
-          if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-          }
+          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
           lastSpokenTimeRef.current = Date.now();
         }
       }, []);
 
-      // =====================================================================
-      // Audio Queue Processor
-      // =====================================================================
       const processAudioQueue = useCallback(async () => {
-        // If muted, already speaking, or queue is empty, do nothing
         if (isGlobalMutedRef.current || isSpeakingRef.current || audioQueueRef.current.length === 0) {
             if (audioQueueRef.current.length === 0 && !isSpeakingRef.current) {
-                lastSpokenTimeRef.current = Date.now(); // Keep resetting while empty
+                lastSpokenTimeRef.current = Date.now(); 
             }
             return;
         }
 
-        isSpeakingRef.current = true; // Lock the queue
-        lastSpokenTimeRef.current = Date.now(); // Reset dead air timer
-        const { text, forceApi, isIcymi } = audioQueueRef.current.shift(); // Get the next item
+        isSpeakingRef.current = true; 
+        lastSpokenTimeRef.current = Date.now(); 
+        const { text, forceApi, isIcymi } = audioQueueRef.current.shift(); 
         currentlyPlayingTypeRef.current = isIcymi ? 'icymi' : 'live';
         
         const voice = configRef.current.openAIVoice || 'alloy';
@@ -226,13 +465,12 @@
             const audio = new Audio(audioUrl);
             currentAudioRef.current = audio;
             
-            // Unlocks the queue when this specific audio finishes
             audio.onended = () => {
               isSpeakingRef.current = false;
               currentAudioRef.current = null;
               currentlyPlayingTypeRef.current = null;
               lastSpokenTimeRef.current = Date.now();
-              processAudioQueue(); // Trigger next item in line
+              processAudioQueue(); 
             };
             audio.onerror = () => {
               isSpeakingRef.current = false;
@@ -255,7 +493,6 @@
           }
         }
 
-        // Native Browser Fallback (if OpenAI fails or isn't used)
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.rate = 1.0;
@@ -284,13 +521,11 @@
         }
       }, [myTtsUrl]);
 
-      // Public API to speak text: Just pushes to queue, handles interruptions
       const speakText = useCallback((text, options = {}) => {
         const { forceApi = false, isLiveUpdate = false, isIcymi = false } = options;
         
         if (!text || (isGlobalMutedRef.current && !forceApi)) return;
         
-        // Anti-Duplicate Filter for live updates
         if (!forceApi && !isIcymi) {
            if (recentlyReadRef.current.has(text)) return; 
            recentlyReadRef.current.add(text);
@@ -300,21 +535,15 @@
            }
         }
 
-        // PRIORITY INTERRUPTION: If a live update arrives, stop any ICYMI immediately!
         if (isLiveUpdate || forceApi) {
-            // Strip ICYMI items from the pending queue
             audioQueueRef.current = audioQueueRef.current.filter(item => !item.isIcymi);
-            
-            // If we are CURRENTLY speaking an ICYMI, cancel it mid-sentence.
             if (currentlyPlayingTypeRef.current === 'icymi' || forceApi) {
                 if (currentAudioRef.current) {
-                    currentAudioRef.current.onended = null; // Prevent double trigger
+                    currentAudioRef.current.onended = null; 
                     currentAudioRef.current.pause();
                     currentAudioRef.current = null;
                 }
-                if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                }
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
                 isSpeakingRef.current = false;
                 currentlyPlayingTypeRef.current = null;
             }
@@ -328,8 +557,6 @@
         e.preventDefault();
         if (isPreviewing) return;
         setIsPreviewing(true);
-        
-        // Temporarily clear queue to prioritize the preview
         audioQueueRef.current = [];
         
         let textToRead = "This is a preview of the selected voice.";
@@ -344,25 +571,17 @@
           }
           
           textToRead = "Latest Update: " + title;
-          if (description && description.length > 10) {
-              textToRead += ". " + description;
-          }
+          if (description && description.length > 10) textToRead += ". " + description;
         }
         
         speakText(textToRead, { forceApi: true });
-        
-        // Simple timeout to reset button state
         setTimeout(() => setIsPreviewing(false), 2000); 
       };
 
-      // =====================================================================
-      // ICYMI Auto-Loop Watcher (Checks for dead air)
-      // =====================================================================
       useEffect(() => {
-        if (!config.autoRead || !config.enableIcymi || feedItems.length === 0) return;
+        if (!config.autoRead || !config.enableIcymi) return;
 
         const interval = setInterval(() => {
-           // If we are currently talking or muted, push the timer back
            if (isSpeakingRef.current || isGlobalMutedRef.current || audioQueueRef.current.length > 0) {
                lastSpokenTimeRef.current = Date.now();
                return;
@@ -372,8 +591,10 @@
            const thresholdMs = config.icymiTime * 60 * 1000;
 
            if (timeSinceLastSpoken >= thresholdMs) {
-               // Dead air detected! Grab a random recent story.
-               const recentItems = feedItems.slice(0, Math.min(15, feedItems.length)); 
+               const pItems = processedItemsRef.current;
+               if (pItems.length === 0) return;
+               
+               const recentItems = pItems.slice(0, Math.min(15, pItems.length)); 
                const randomItem = recentItems[Math.floor(Math.random() * recentItems.length)];
                
                if (randomItem) {
@@ -386,32 +607,20 @@
                        description = description.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
                    }
                    
-                   if (description && description.length > 10) {
-                       textToRead += ". " + description;
-                   }
+                   if (description && description.length > 10) textToRead += ". " + description;
                    
-                   const icymiPrefixes = [
-                       "In case you missed it: ", 
-                       "Recapping today's top stories: ", 
-                       "Earlier today: ", 
-                       "A quick recap: ",
-                       "Catching you up: "
-                   ];
+                   const icymiPrefixes = ["In case you missed it: ", "Recapping today's top stories: ", "Earlier today: ", "A quick recap: ", "Catching you up: "];
                    const randomPrefix = icymiPrefixes[Math.floor(Math.random() * icymiPrefixes.length)];
                    
                    speakText(randomPrefix + textToRead, { isIcymi: true });
-                   lastSpokenTimeRef.current = Date.now(); // Reset timer
+                   lastSpokenTimeRef.current = Date.now(); 
                }
            }
-        }, 10000); // Check every 10 seconds
+        }, 10000); 
 
         return () => clearInterval(interval);
-      }, [config.autoRead, config.enableIcymi, config.icymiTime, config.removeText, feedItems, speakText]);
+      }, [config.autoRead, config.enableIcymi, config.icymiTime, config.removeText, speakText]);
 
-
-      // =====================================================================
-      // Multi-Source Fetch & Scraping Engine
-      // =====================================================================
       const fetchFeedData = useCallback(async (targetUrlsStr, isSilent = false) => {
         if (!isSilent) {
           setIsGenerating(true);
@@ -419,11 +628,9 @@
         }
         
         try {
-          // Split input string by newlines or commas into an array of URLs
           const rawUrlList = targetUrlsStr.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
           if (rawUrlList.length === 0) throw new Error("No valid URLs provided.");
 
-          // Helper function to process a single URL
           const fetchSingleUrl = async (rawUrl) => {
             let fetchUrl = rawUrl;
             try {
@@ -434,13 +641,119 @@
                   urlObj.pathname = '/s/' + parts[0];
                 }
               }
-              urlObj.searchParams.set('r', Date.now().toString()); // Cache Buster
+              urlObj.searchParams.set('r', Date.now().toString()); 
               fetchUrl = urlObj.toString();
             } catch(e) {}
 
             let htmlString = '';
             const encodedTarget = encodeURIComponent(fetchUrl);
             
+            // For Telegram we will fetch up to 3 pages to ensure we get a large pool of daily videos
+            if (fetchUrl.includes('t.me/s/')) {
+                let currentUrl = fetchUrl;
+                let pagesFetched = 0;
+                const maxTelegramPages = 3; // Grabs ~60 posts total
+                let telegramItems = [];
+
+                while (currentUrl && pagesFetched < maxTelegramPages) {
+                    let pageHtml = '';
+                    const pageTarget = encodeURIComponent(currentUrl);
+                    try {
+                      const response = await fetch(`${myBackendUrl}?url=${pageTarget}`, { cache: 'no-store' });
+                      if (!response.ok) throw new Error('Backend failed');
+                      pageHtml = await response.text();
+                    } catch (backendErr) {
+                      const res1 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${pageTarget}`, { cache: 'no-store' });
+                      if (res1.ok) pageHtml = await res1.text();
+                      else {
+                        const resFallback = await fetch(`https://api.allorigins.win/get?url=${pageTarget}`, { cache: 'no-store' });
+                        const data = await resFallback.json();
+                        pageHtml = data.contents;
+                      }
+                    }
+
+                    if (!pageHtml) break;
+                    
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(pageHtml, 'text/html');
+                    const baseUrl = new URL(currentUrl).origin;
+                    let itemSourceName = new URL(currentUrl).hostname.replace('www.', '');
+
+                    const messages = doc.querySelectorAll('.tgme_widget_message');
+                    if (messages.length === 0) break;
+
+                    messages.forEach((msg) => {
+                      const textEl = msg.querySelector('.tgme_widget_message_text');
+                      const dateLink = msg.querySelector('.tgme_widget_message_date');
+                      
+                      const authorEl = msg.querySelector('.tgme_widget_message_owner_name span') || msg.querySelector('.tgme_widget_message_owner_name');
+                      if (authorEl) {
+                          itemSourceName = authorEl.innerText.trim();
+                      } else {
+                          const urlParts = new URL(currentUrl).pathname.split('/').filter(Boolean);
+                          itemSourceName = urlParts[urlParts.length - 1] || 'Telegram';
+                      }
+
+                      if (textEl && dateLink) {
+                        let title = textEl.innerText.trim().replace(/\n/g, ' ');
+                        if (!title) title = 'Telegram Update';
+
+                        let link = dateLink.getAttribute('href');
+                        if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
+
+                        let timeStr = '';
+                        const timeEl = dateLink.querySelector('time');
+                        if (timeEl && timeEl.getAttribute('datetime')) timeStr = timeEl.getAttribute('datetime');
+
+                        let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
+                        
+                        let videoEl = msg.querySelector('video') || msg.querySelector('.tgme_widget_message_video_wrap video');
+                        if (videoEl) {
+                            let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
+                            if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
+                        }
+                        
+                        if (video) isVideo = true;
+                        else if (msg.querySelector('.tgme_widget_message_video_player, .tgme_widget_message_video_wrap, .play_icon')) {
+                            isVideo = true;
+                            try {
+                                const u = new URL(link); u.searchParams.set('embed', '1'); u.searchParams.set('autoplay', '1');
+                                embedUrl = u.toString();
+                            } catch(e) {}
+                        }
+
+                        const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap, .tgme_widget_message_video_thumb');
+                        if (photoWrap) {
+                          const match = photoWrap.getAttribute('style')?.match(/background-image:\s*url\(['"]?([^'"]+)['"]?\)/i);
+                          if (match) image = match[1];
+                        } 
+                        if (!image) {
+                           const imgEl = msg.querySelector('.tgme_widget_message_photo img');
+                           if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
+                        }
+                        
+                        const str = (title || '') + (link || '');
+                        let hash = 0;
+                        for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i) | 0;
+                        
+                        telegramItems.push({ id: `id-${Math.abs(hash)}`, title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
+                      }
+                    });
+
+                    // Pagination check
+                    const moreBtn = doc.querySelector('.tme_messages_more');
+                    if (moreBtn && moreBtn.getAttribute('href')) {
+                        const nextPath = moreBtn.getAttribute('href');
+                        currentUrl = nextPath.startsWith('http') ? nextPath : `https://t.me${nextPath}`;
+                    } else {
+                        currentUrl = null;
+                    }
+                    pagesFetched++;
+                }
+                return telegramItems;
+            }
+
+            // If not telegram, just fetch normally once
             try {
               const response = await fetch(`${myBackendUrl}?url=${encodedTarget}`, { cache: 'no-store' });
               if (!response.ok) throw new Error('Backend failed');
@@ -461,7 +774,6 @@
             let doc;
             let isXML = false;
             
-            // Detect if the payload is RSS/XML
             const htmlTrimmed = htmlString.trim();
             if (htmlTrimmed.startsWith('<?xml') || htmlTrimmed.includes('<rss') || htmlTrimmed.includes('<feed')) {
                 doc = parser.parseFromString(htmlString, 'text/xml');
@@ -475,7 +787,6 @@
             let globalSourceName = new URL(fetchUrl).hostname.replace('www.', '');
 
             if (isXML) {
-                // --- 1. Standard RSS / Atom XML Parser ---
                 const channelTitle = doc.querySelector('channel > title, feed > title');
                 if (channelTitle) globalSourceName = channelTitle.textContent.trim();
                 
@@ -483,18 +794,15 @@
                 nodes.forEach(node => {
                     let itemSourceName = globalSourceName;
                     
-                    // Attempt to extract specific source name (Common in Google News RSS)
                     const sourceEl = node.querySelector('source');
                     if (sourceEl) itemSourceName = sourceEl.textContent.trim();
 
                     let title = node.querySelector('title')?.textContent?.trim() || '';
                     
-                    // Clean Google News Titles (Removes the trailing " - Source Name")
                     if (itemSourceName && title.endsWith(` - ${itemSourceName}`)) {
                         title = title.substring(0, title.length - (` - ${itemSourceName}`).length);
                     }
 
-                    // Look for rich content first, fallback to standard description
                     let rawDescription = node.querySelector('encoded, content\\:encoded, description, content, summary')?.textContent?.trim() || '';
                     
                     let linkNode = node.querySelector('link');
@@ -503,12 +811,8 @@
                     
                     let timeStr = node.querySelector('pubDate, published, updated, date, dc\\:date')?.textContent?.trim() || '';
                     
-                    let image = '';
-                    let video = '';
-                    let isVideo = false;
-                    let embedUrl = '';
+                    let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
                     
-                    // Enclosures
                     const enclosure = node.querySelector('enclosure');
                     if (enclosure) {
                         const type = enclosure.getAttribute('type') || '';
@@ -517,7 +821,6 @@
                         else if (type.startsWith('image')) { image = url; }
                     }
                     
-                    // Parse CDATA/HTML inside description for media
                     if (!image) {
                         const imgMatch = rawDescription.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
                         if (imgMatch) image = imgMatch[1];
@@ -527,82 +830,29 @@
                         if (vidMatch) { video = vidMatch[1]; isVideo = true; }
                     }
 
-                    // Strip HTML from description to get pure article text/summary
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = rawDescription;
                     let cleanDescription = tempDiv.textContent || tempDiv.innerText || '';
                     
-                    // Clean up duplicate titles/sources often stuffed into Google News descriptions
                     if (title && cleanDescription && cleanDescription.includes(title)) {
                         cleanDescription = cleanDescription.replace(title, '').trim();
                     }
-                    if (itemSourceName && cleanDescription.startsWith("- " + itemSourceName)) {
-                        cleanDescription = cleanDescription.replace("- " + itemSourceName, '').trim();
+                    if (itemSourceName && cleanDescription.includes(itemSourceName)) {
+                        cleanDescription = cleanDescription.replace(itemSourceName, '').trim();
                     }
+                    
+                    cleanDescription = cleanDescription.replace(/^[-—|:\s]+/, '').replace(/[-—|:\s]+$/, '').trim();
+
+                    if (cleanDescription.length < 15) cleanDescription = '';
 
                     if (title || cleanDescription) {
-                        items.push({ id: Math.random().toString(), title: title || 'News Update', link, description: cleanDescription, image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
+                        const str = (title || '') + (link || '');
+                        let hash = 0;
+                        for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i) | 0;
+                        items.push({ id: `id-${Math.abs(hash)}`, title: title || 'News Update', link, description: cleanDescription, image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
                     }
-                });
-            } else if (fetchUrl.includes('t.me/s/')) {
-                // --- 2. Telegram Logic (Existing) ---
-                const messages = doc.querySelectorAll('.tgme_widget_message');
-                messages.forEach((msg) => {
-                  const textEl = msg.querySelector('.tgme_widget_message_text');
-                  const dateLink = msg.querySelector('.tgme_widget_message_date');
-                  
-                  let itemSourceName = globalSourceName;
-                  const authorEl = msg.querySelector('.tgme_widget_message_owner_name span') || msg.querySelector('.tgme_widget_message_owner_name');
-                  if (authorEl) {
-                      itemSourceName = authorEl.innerText.trim();
-                  } else {
-                      const urlParts = new URL(fetchUrl).pathname.split('/').filter(Boolean);
-                      itemSourceName = urlParts[urlParts.length - 1] || 'Telegram';
-                  }
-
-                  if (textEl && dateLink) {
-                    let title = textEl.innerText.trim().replace(/\n/g, ' ');
-                    if (!title) title = 'Telegram Update';
-
-                    let link = dateLink.getAttribute('href');
-                    if (link && !link.startsWith('http')) link = new URL(link, baseUrl).href;
-
-                    let timeStr = '';
-                    const timeEl = dateLink.querySelector('time');
-                    if (timeEl && timeEl.getAttribute('datetime')) timeStr = timeEl.getAttribute('datetime');
-
-                    let image = ''; let video = ''; let isVideo = false; let embedUrl = '';
-                    
-                    let videoEl = msg.querySelector('video') || msg.querySelector('.tgme_widget_message_video_wrap video');
-                    if (videoEl) {
-                        let vSrc = videoEl.getAttribute('src') || videoEl.getAttribute('data-src') || (videoEl.querySelector('source') && videoEl.querySelector('source').getAttribute('src'));
-                        if (vSrc) video = vSrc.startsWith('http') ? vSrc : new URL(vSrc, baseUrl).href;
-                    }
-                    
-                    if (video) isVideo = true;
-                    else if (msg.querySelector('.tgme_widget_message_video_player, .tgme_widget_message_video_wrap, .play_icon')) {
-                        isVideo = true;
-                        try {
-                            const u = new URL(link); u.searchParams.set('embed', '1'); u.searchParams.set('autoplay', '1');
-                            embedUrl = u.toString();
-                        } catch(e) {}
-                    }
-
-                    const photoWrap = msg.querySelector('.tgme_widget_message_photo_wrap, .tgme_widget_message_video_thumb');
-                    if (photoWrap) {
-                      const match = photoWrap.getAttribute('style')?.match(/background-image:\s*url\(['"]?([^'"]+)['"]?\)/i);
-                      if (match) image = match[1];
-                    } 
-                    if (!image) {
-                       const imgEl = msg.querySelector('.tgme_widget_message_photo img');
-                       if (imgEl && imgEl.getAttribute('src')) image = imgEl.getAttribute('src');
-                    }
-                    
-                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
-                  }
                 });
             } else if (htmlString.includes('timeline-item') && htmlString.includes('tweet-content')) {
-                // --- 3. Nitter / Xcancel HTML Parser ---
                 let itemSourceName = globalSourceName;
                 const profileNameEl = doc.querySelector('.profile-card-fullname');
                 if (profileNameEl) itemSourceName = profileNameEl.innerText.trim();
@@ -644,10 +894,13 @@
                         }
                     }
 
-                    items.push({ id: Math.random().toString(), title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
+                    const str = (title || '') + (link || '');
+                    let hash = 0;
+                    for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i) | 0;
+
+                    items.push({ id: `id-${Math.abs(hash)}`, title, link, description: '', image, video, isVideo, embedUrl, time: timeStr, source: itemSourceName });
                 });
             } else {
-                // --- 4. Generic HTML Parser Fallback ---
                 const headings = doc.querySelectorAll('h1, h2, h3, h4');
                 headings.forEach((heading) => {
                   const linkEl = heading.querySelector('a') || (heading.tagName === 'A' ? heading : null);
@@ -677,14 +930,18 @@
                        }
                     }
                     if (video) isVideo = true;
-                    items.push({ id: Math.random().toString(), title, link, description, image, video, isVideo, embedUrl, time: '', source: globalSourceName });
+
+                    const str = (title || '') + (link || '');
+                    let hash = 0;
+                    for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i) | 0;
+
+                    items.push({ id: `id-${Math.abs(hash)}`, title, link, description, image, video, isVideo, embedUrl, time: '', source: globalSourceName });
                   }
                 });
             }
             return items;
           };
 
-          // Fetch all URLs simultaneously
           const allResults = await Promise.allSettled(rawUrlList.map(u => fetchSingleUrl(u)));
           let allCombinedItems = [];
           
@@ -694,43 +951,15 @@
             }
           });
 
-          // Deduplicate by Link
           let uniqueItems = Array.from(new Map(allCombinedItems.map(item => [item.link, item])).values());
           
-          // Note: Exclude/Whitelist Filtering is done in the rendering pass (processedItems) 
-          // so that the UI can update instantly as the user types in the config boxes.
-          // However, we MUST filter them here too, so the Auto-Read TTS doesn't read filtered spam out loud.
-          
-          const currentExclude = configRef.current.excludeKeywords;
-          if (currentExclude) {
-             const badWords = currentExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
-             if (badWords.length > 0) {
-                 uniqueItems = uniqueItems.filter(item => {
-                     const textContent = (item.title + " " + item.description).toLowerCase();
-                     return !badWords.some(badWord => textContent.includes(badWord));
-                 });
-             }
-          }
-          
-          const currentWhitelist = configRef.current.whitelistSources;
-          if (currentWhitelist) {
-             const goodSources = currentWhitelist.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
-             if (goodSources.length > 0) {
-                 uniqueItems = uniqueItems.filter(item => {
-                     const itemSource = (item.source || '').toLowerCase();
-                     return goodSources.some(goodSource => itemSource.includes(goodSource));
-                 });
-             }
-          }
-
-          // Sort Chronologically (Newest First)
           uniqueItems.sort((a, b) => {
              const timeA = a.time ? new Date(a.time).getTime() : 0;
              const timeB = b.time ? new Date(b.time).getTime() : 0;
              return timeB - timeA; 
           });
 
-          if (uniqueItems.length >= 1) {
+          if (uniqueItems.length > 0) {
             setFeedItems(prevItems => {
                const prevLinks = new Set(prevItems.map(i => i.link));
                const newItems = uniqueItems.filter(i => !prevLinks.has(i.link));
@@ -740,11 +969,32 @@
                } else if (newItems.length > 0) {
                    setCarouselIndex(0); 
                    
-                   // Automatically Read all newly found items (oldest of the new batch first)
                    if (isSilent && configRef.current.autoRead) {
                        const currentRemoveText = configRef.current.removeText;
-                       // Reverse newItems so chronologically it reads the oldest new post first, leading up to latest
+                       const currentExclude = configRef.current.excludeKeywords;
+                       const currentWhitelist = configRef.current.whitelistSources;
+                       const currentDate = configRef.current.filterDate;
+                       const currentKeyword = configRef.current.filterKeyword;
+                       
+                       const badWords = currentExclude ? currentExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean) : [];
+                       const goodSources = currentWhitelist ? currentWhitelist.toLowerCase().split(',').map(w => w.trim()).filter(Boolean) : [];
+                       const kwRequired = currentKeyword ? currentKeyword.toLowerCase() : '';
+
                        [...newItems].reverse().forEach(item => {
+                           // Apply background TTS Filters
+                           if (currentDate) {
+                               if (!item.time) return;
+                               const d = new Date(item.time);
+                               if (!isNaN(d.getTime()) && d.toISOString().split('T')[0] !== currentDate) return;
+                           }
+                           
+                           const textContent = (item.title + " " + item.description).toLowerCase();
+                           const itemSource = (item.source || '').toLowerCase();
+
+                           if (kwRequired && !textContent.includes(kwRequired)) return;
+                           if (badWords.length > 0 && badWords.some(badWord => textContent.includes(badWord))) return;
+                           if (goodSources.length > 0 && !goodSources.some(goodSource => itemSource.includes(goodSource))) return;
+
                            let textToRead = item.title;
                            let description = item.description || '';
                            
@@ -759,7 +1009,6 @@
                                combinedRead += ". " + description;
                            }
                            
-                           // Flag as a Live Update so it interrupts any playing ICYMI loops
                            speakText(combinedRead, { isLiveUpdate: true });
                        });
                    }
@@ -769,13 +1018,16 @@
             });
             if (!isSilent) setInfoMsg(`Successfully extracted ${uniqueItems.length} item${uniqueItems.length > 1 ? 's' : ''}.`);
           } else {
-            throw new Error("Could not extract items. They may have been blocked by your filters.");
+             if (!isSilent) setErrorMsg("No items could be extracted from the provided sources.");
           }
         } catch (err) {
           if (!isSilent) {
             console.error("Scraping error:", err);
-            setFeedItems(MOCK_DATA);
-            setErrorMsg(`Error: ${err.message}. Showing demo data instead.`);
+            setFeedItems(prev => {
+                if (prev.length === 0) return MOCK_DATA;
+                return prev;
+            });
+            setErrorMsg(`Error: ${err.message}`);
           }
         } finally {
           if (!isSilent) setIsGenerating(false);
@@ -796,7 +1048,7 @@
             accentColor: params.get('color') || '#3b82f6',
             showImages: params.get('imgs') !== 'false',
             showDescription: params.get('desc') !== 'false',
-            maxItems: parseInt(params.get('limit')) || 5,
+            maxItems: parseInt(params.get('limit')) || 15,
             tickerSpeed: params.get('speed') !== null ? parseInt(params.get('speed')) : 50,
             tickerCharLimit: parseInt(params.get('chars')) || 80,
             removeText: params.get('remove') ? decodeURIComponent(params.get('remove')) : '', 
@@ -810,6 +1062,12 @@
             icymiTime: parseInt(params.get('icymiTime')) || 3,
             openAIVoice: params.get('openaiVoice') || 'alloy',
             seamless: params.get('seamless') === 'true',
+            broadcastScale: parseInt(params.get('bScale')) || 100,
+            broadcastTextScale: parseInt(params.get('bTScale')) || 100,
+            broadcastBgImage: params.get('bBgImg') ? decodeURIComponent(params.get('bBgImg')) : '',
+            broadcastBgOpacity: params.get('bBgOp') ? parseInt(params.get('bBgOp')) : 50,
+            filterDate: params.get('fDate') !== null ? params.get('fDate') : new Date().toISOString().split('T')[0],
+            filterKeyword: params.get('fKey') ? decodeURIComponent(params.get('fKey')) : '',
           });
 
           const targetUrl = params.get('url');
@@ -822,11 +1080,10 @@
         }
       }, [fetchFeedData]);
 
-      // Automatic Background Polling Logic
       useEffect(() => {
         if (!url || url === 'demo' || config.refreshRate < 10) return;
         const intervalId = setInterval(() => {
-          fetchFeedData(url, true); // true = run silently in background
+          fetchFeedData(url, true); 
         }, config.refreshRate * 1000); 
         return () => clearInterval(intervalId);
       }, [url, config.refreshRate, fetchFeedData]);
@@ -835,10 +1092,9 @@
         e.preventDefault();
         
         let target = url;
-        // Intercept Topic Search and covert to Google News URL
         if (sourceMode === 'topic' && topicQuery) {
             target = `https://news.google.com/rss/search?q=${encodeURIComponent(topicQuery)}`;
-            setUrl(target); // Sync state so the embed export utilizes the Google News URL
+            setUrl(target); 
         }
         
         if (target) fetchFeedData(target, false);
@@ -847,15 +1103,13 @@
       const handleCopyCode = () => {
         const baseUrl = window.location.href.split('?')[0];
         
-        // Define inline styles based on whether Seamless is toggled on or off
         const iframeStyles = config.seamless 
           ? `border: none; background-color: transparent;` 
           : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`;
 
         const embedCode = `
-<!-- RSS Feed Widget -->
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" 
   width="${exportWidth}" 
   height="${exportHeight}" 
   frameborder="0" 
@@ -899,11 +1153,33 @@
         return `${days} day${days > 1 ? 's' : ''} ago`;
       };
 
-      // =====================================================================
-      // Live Preview Real-Time Filtering
-      // =====================================================================
+      const toggleVideoSelection = (id) => {
+          setSelectedVideos(prev => 
+              prev.includes(id) ? prev.filter(vidId => vidId !== id) : [...prev, id]
+          );
+      };
+
+      // Apply All Filters
       let processedItems = feedItems;
       
+      if (config.filterDate) {
+          processedItems = processedItems.filter(item => {
+              if (!item.time) return false;
+              const d = new Date(item.time);
+              if (isNaN(d.getTime())) return false; 
+              return d.toISOString().split('T')[0] === config.filterDate;
+          });
+      }
+      
+      const uiKeyword = config.filterKeyword;
+      if (uiKeyword) {
+          const kw = uiKeyword.toLowerCase();
+          processedItems = processedItems.filter(item => {
+              const textContent = (item.title + " " + item.description).toLowerCase();
+              return textContent.includes(kw);
+          });
+      }
+
       const uiExclude = config.excludeKeywords;
       if (uiExclude) {
          const badWords = uiExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean);
@@ -925,8 +1201,11 @@
              });
          }
       }
+      
+      processedItemsRef.current = processedItems;
 
-      const displayItems = processedItems.slice(0, config.maxItems);
+      // Only slice for standard layouts. Slideshow gets EVERYTHING.
+      const displayItems = config.layout === 'slideshow' ? processedItems : processedItems.slice(0, config.maxItems);
       
       const safeItemCount = Math.max(1, displayItems.length);
       const activeCarouselIndex = carouselIndex % safeItemCount;
@@ -948,6 +1227,59 @@
       const renderLightbox = () => {
         if (!lightbox) return null;
         
+        // =====================================================================
+        // Cinematic Broadcast Slideshow Lightbox (16:9 Aspect Ratio)
+        // =====================================================================
+        if (lightbox.type === 'slideshow') {
+            const currentItem = lightbox.items[lightbox.currentIndex];
+            if (!currentItem) return null;
+            
+            return (
+              <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center transition-opacity" onClick={() => setLightbox(null)}>
+                <button className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-[10000]" onClick={() => setLightbox(null)}>&times;</button>
+                
+                {/* 16:9 Broadcast Container */}
+                <div className="relative w-full max-w-[1920px] aspect-video bg-gray-900 shadow-2xl overflow-hidden flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                  {config.broadcastBgImage && (
+                      <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />
+                  )}
+                  
+                  <video 
+                    key={currentItem.id} 
+                    src={currentItem.video} 
+                    controls={false} // Hidden for clean broadcast
+                    autoPlay 
+                    className="w-full h-full object-contain relative z-10"
+                    onEnded={() => {
+                        if (lightbox.currentIndex < lightbox.items.length - 1) {
+                            setLightbox({ ...lightbox, currentIndex: lightbox.currentIndex + 1 });
+                        } else {
+                            setLightbox({ ...lightbox, currentIndex: 0 }); // Auto Loop
+                        }
+                    }}
+                  />
+                  
+                  {/* Lower Third Broadcast Graphic */}
+                  <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-6 rounded-r-2xl text-white shadow-2xl pointer-events-none z-20"
+                       style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
+                      <div className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-widest flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                          {currentItem.source || 'BREAKING NEWS'}
+                      </div>
+                      <h2 className="font-black mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentItem.title)}</h2>
+                      {currentItem.description && <p className="text-gray-200 opacity-90 line-clamp-2 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>{cleanText(currentItem.description)}</p>}
+                  </div>
+
+                  {/* Progress Bar overlay */}
+                  <div className="absolute top-0 left-0 w-full h-1 bg-white/20 z-20">
+                      <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${((lightbox.currentIndex + 1) / lightbox.items.length) * 100}%` }}></div>
+                  </div>
+                </div>
+              </div>
+            );
+        }
+        
+        // STANDARD Lightboxes
         const iframeUrl = (lightbox.type === 'iframe' && config.theme === 'dark') ? lightbox.url + '&dark=1' : lightbox.url;
 
         return (
@@ -958,6 +1290,18 @@
                 <video src={lightbox.url} referrerPolicy="no-referrer" controls autoPlay loop className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
               ) : lightbox.type === 'iframe' ? (
                 <iframe src={iframeUrl} className="w-full h-[80vh] max-w-2xl bg-transparent rounded-lg shadow-2xl border-0" allow="autoplay; fullscreen" allowFullScreen></iframe>
+              ) : lightbox.type === 'text' ? (
+                <div className={`p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto ${config.theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-white text-slate-800'}`}>
+                   <h2 className="text-2xl font-bold mb-4">{lightbox.data.title}</h2>
+                   <div className="flex items-center gap-3 text-xs mb-6 opacity-70 font-medium">
+                       {lightbox.data.source && <span><i className="fa-solid fa-bullhorn mr-1"></i>{lightbox.data.source}</span>}
+                       {lightbox.data.time && <span><i className="fa-regular fa-clock mr-1"></i>{timeAgo(lightbox.data.time)}</span>}
+                   </div>
+                   <p className="text-base leading-relaxed whitespace-pre-wrap">{lightbox.data.description}</p>
+                   <div className="mt-8 pt-4 border-t border-inherit opacity-50 flex justify-between items-center">
+                       <a href={lightbox.data.link} target="_blank" rel="noreferrer" className="hover:underline text-sm"><i className="fa-solid fa-arrow-up-right-from-square mr-1"></i> View Original Source</a>
+                   </div>
+                </div>
               ) : (
                 <img src={lightbox.url} referrerPolicy="no-referrer" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
               )}
@@ -977,7 +1321,7 @@
                 ${config.tickerSpeed === 0 ? 'animation-play-state: paused !important;' : ''}
               }
               .pause-on-hover:hover .animate-marquee { animation-play-state: paused; }
-              ${(config.seamless || config.carouselMode) ? `
+              ${(config.seamless || config.carouselMode || config.layout === 'map' || config.layout === 'slideshow') ? `
               .embed-scroll::-webkit-scrollbar { display: none; width: 0px; }
               .embed-scroll { -ms-overflow-style: none; scrollbar-width: none; }
               ` : `
@@ -998,6 +1342,30 @@
               </button>
             )}
 
+            {config.layout === 'map' && (
+                <div className={`w-full h-full relative ${config.seamless ? '' : 'p-2'}`}>
+                    <div className={`w-full h-full relative overflow-hidden ${config.seamless ? '' : 'rounded-lg border shadow-sm'} ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-300'}`}>
+                       <FeedMap items={displayItems} theme={config.theme} accentColor={config.accentColor} />
+                    </div>
+                </div>
+            )}
+            
+            {/* ========================================================= */}
+            {/* EMBED SLIDESHOW LAYOUT (Auto-playing 16:9 Broadcast) */}
+            {/* ========================================================= */}
+            {config.layout === 'slideshow' && (() => {
+                const videoItems = processedItems.filter(item => item.video);
+                if (videoItems.length === 0) return <div className="w-full h-screen flex items-center justify-center bg-black text-gray-500">No videos available in this feed.</div>;
+                
+                return <EmbedSlideshowPlayer 
+                           currentItem={videoItems[embedSlideshowIndex % videoItems.length]} 
+                           config={config} 
+                           cleanText={cleanText}
+                           onEnded={() => setEmbedSlideshowIndex(prev => prev + 1)} 
+                       />;
+            })()}
+
+            {config.layout !== 'map' && config.layout !== 'slideshow' && (
             <div className={`w-full h-full ${config.layout !== 'ticker' ? `embed-scroll overflow-y-auto ${config.seamless ? 'p-0' : 'p-4'}` : 'flex items-center'}`}>
               
               {config.layout === 'list' && (
@@ -1025,7 +1393,7 @@
                                 </div>
                               ) : (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: resolvedImage}); }}>
-                                  <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                  <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-105 transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-2xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               )}
@@ -1133,7 +1501,7 @@
 
                   {config.carouselMode && displayItems.length > 1 && (
                     <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
-                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
                       <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
@@ -1147,8 +1515,9 @@
                 </div>
               )}
 
+              {/* FEED LAYOUT */}
               {config.layout === 'grid' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
                   {displayItems.map((item, idx) => {
                     const resolvedImage = item.image || config.fallbackImage;
                     const hasMedia = item.video || item.isVideo || resolvedImage;
@@ -1156,7 +1525,7 @@
                     return (
                     <div key={idx} className={`group flex flex-col h-full ${config.seamless ? '' : 'rounded-xl border'} overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                       {config.showImages && hasMedia ? (
-                        <div className="w-full h-32 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
+                        <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
                               <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
@@ -1235,6 +1604,7 @@
                 </div>
               )}
             </div>
+            )}
             
             {renderLightbox()}
           </div>
@@ -1250,7 +1620,7 @@
             .preview-scroll::-webkit-scrollbar { width: 6px; }
             .preview-scroll::-webkit-scrollbar-track { background: transparent; }
             .preview-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
-            ${(config.seamless || config.carouselMode) ? `
+            ${(config.seamless || config.carouselMode || config.layout === 'map' || config.layout === 'slideshow') ? `
             .preview-scroll::-webkit-scrollbar { display: none; width: 0px; }
             .preview-scroll { -ms-overflow-style: none; scrollbar-width: none; }
             ` : ''}
@@ -1280,7 +1650,6 @@
                   </div>
                   <div className="p-5">
                     
-                    {/* NEW: Source Mode Toggle */}
                     <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
                       <button onClick={(e) => { e.preventDefault(); setSourceMode('urls'); }} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceMode === 'urls' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Direct URLs</button>
                       <button onClick={(e) => { e.preventDefault(); setSourceMode('topic'); }} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${sourceMode === 'topic' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Topic Search</button>
@@ -1337,123 +1706,167 @@
                   <div className="p-5 space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-border-all"></i> Layout Style</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[{ id: 'list', icon: 'fa-solid fa-list', label: 'List' }, { id: 'grid', icon: 'fa-solid fa-border-all', label: 'Grid' }, { id: 'feed', icon: 'fa-solid fa-image', label: 'Feed' }, { id: 'ticker', icon: 'fa-solid fa-ellipsis', label: 'Ticker' }].map((type) => (
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        {[
+                           { id: 'list', icon: 'fa-solid fa-list', label: 'List' }, 
+                           { id: 'grid', icon: 'fa-solid fa-border-all', label: 'Grid' }, 
+                           { id: 'feed', icon: 'fa-solid fa-image', label: 'Feed' }, 
+                           { id: 'ticker', icon: 'fa-solid fa-ellipsis', label: 'Ticker' },
+                           { id: 'map', icon: 'fa-solid fa-earth-americas', label: 'Live Map' },
+                           { id: 'slideshow', icon: 'fa-solid fa-play-circle', label: 'Slide' } 
+                        ].map((type) => (
                           <button key={type.id} onClick={() => setConfig({ ...config, layout: type.id })} className={`flex flex-col items-center justify-center gap-1 py-3 px-1 border rounded-lg transition-all ${config.layout === type.id ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                            <i className={`${type.icon} text-lg`}></i><span className="text-[11px] font-medium">{type.label}</span>
+                            <i className={`${type.icon} text-lg`}></i><span className="text-[11px] font-medium tracking-tight leading-tight">{type.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-sliders"></i> Theme</label>
-                      <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setConfig({ ...config, theme: 'light', bgColor: '#ffffff', cardBgColor: '#f8fafc' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'light' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Light</button>
-                        <button onClick={() => setConfig({ ...config, theme: 'dark', bgColor: '#0f172a', cardBgColor: '#1e293b' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'dark' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Dark</button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-font"></i> Font Family</label>
-                      <div className="flex bg-gray-100 p-1 rounded-lg">
-                        <button onClick={() => setConfig({ ...config, fontFamily: 'sans' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'sans' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>System Sans</button>
-                        <button onClick={() => setConfig({ ...config, fontFamily: 'jetbrains' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'jetbrains' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`} style={{fontFamily: '"JetBrains Mono", monospace'}}>JetBrains Mono</button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-palette"></i> Accent Color</label>
-                      <div className="flex gap-2">
-                        {['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#0f172a'].map((color) => (
-                          <button key={color} onClick={() => setConfig({ ...config, accentColor: color })} className={`w-8 h-8 rounded-full border-2 transition-transform ${config.accentColor === color ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: color }} aria-label={`Select color ${color}`} />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                          <i className="fa-solid fa-fill-drip"></i> Main Background
-                        </label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                          <input type="text" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
+                    {/* NEW: CONTENT FILTERS SECTION */}
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Content Filters</h3>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                            <i className="fa-regular fa-calendar"></i> Filter by Date
+                          </label>
+                          <div className="flex gap-2">
+                              <input 
+                                type="date" 
+                                value={config.filterDate} 
+                                onChange={(e) => setConfig({ ...config, filterDate: e.target.value })} 
+                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
+                              />
+                              {config.filterDate && (
+                                  <button onClick={(e) => { e.preventDefault(); setConfig({...config, filterDate: ''}); }} className="px-4 bg-red-50 text-red-600 rounded-lg border border-red-200 text-sm font-medium hover:bg-red-100 transition-colors">Clear</button>
+                              )}
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                          <i className="fa-solid fa-square"></i> Card Background
-                        </label>
-                        <div className="flex gap-2 items-center">
-                          <input type="color" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                          <input type="text" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                            <i className="fa-solid fa-magnifying-glass"></i> Keyword Required (Optional)
+                          </label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g., Dimona" 
+                            value={config.filterKeyword} 
+                            onChange={(e) => setConfig({ ...config, filterKeyword: e.target.value })} 
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
+                          />
                         </div>
-                      </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                            <i className="fa-solid fa-eraser"></i> Text to Remove
+                          </label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g., Follow @mypage" 
+                            value={config.removeText} 
+                            onChange={(e) => setConfig({ ...config, removeText: e.target.value })} 
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1 text-red-600">
+                            <i className="fa-solid fa-filter"></i> Exclude Keywords (Spam Filter)
+                          </label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g., promo, subscribe" 
+                            value={config.excludeKeywords} 
+                            onChange={(e) => setConfig({ ...config, excludeKeywords: e.target.value })} 
+                            className="w-full px-3 py-2 bg-red-50/50 border border-red-200 text-gray-900 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm transition-all" 
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1 text-green-600">
+                            <i className="fa-solid fa-check-circle"></i> Whitelist Sources
+                          </label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g., Reuters, BBC" 
+                            value={config.whitelistSources} 
+                            onChange={(e) => setConfig({ ...config, whitelistSources: e.target.value })} 
+                            className="w-full px-3 py-2 bg-green-50/50 border border-green-200 text-gray-900 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-sm transition-all" 
+                          />
+                        </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                          <i className="fa-solid fa-eraser"></i> Text to Remove
-                        </label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g., Follow @mypage" 
-                          value={config.removeText} 
-                          onChange={(e) => setConfig({ ...config, removeText: e.target.value })} 
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
-                        />
-                      </div>
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Visuals</h3>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-sliders"></i> Theme</label>
+                          <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <button onClick={() => setConfig({ ...config, theme: 'light', bgColor: '#ffffff', cardBgColor: '#f8fafc' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'light' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Light</button>
+                            <button onClick={() => setConfig({ ...config, theme: 'dark', bgColor: '#0f172a', cardBgColor: '#1e293b' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.theme === 'dark' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Dark</button>
+                          </div>
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1 text-red-600">
-                          <i className="fa-solid fa-filter"></i> Exclude Keywords (Spam Filter)
-                        </label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g., promo, subscribe, giveaway" 
-                          value={config.excludeKeywords} 
-                          onChange={(e) => setConfig({ ...config, excludeKeywords: e.target.value })} 
-                          className="w-full px-3 py-2 bg-red-50/50 border border-red-200 text-gray-900 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm transition-all" 
-                        />
-                        <p className="text-[11px] text-gray-500 mt-1">If a post contains these words, it will be completely hidden and skipped.</p>
-                      </div>
+                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-font"></i> Font Family</label>
+                              <div className="flex bg-gray-100 p-1 rounded-lg">
+                                <button onClick={() => setConfig({ ...config, fontFamily: 'sans' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'sans' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>System Sans</button>
+                                <button onClick={() => setConfig({ ...config, fontFamily: 'jetbrains' })} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.fontFamily === 'jetbrains' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`} style={{fontFamily: '"JetBrains Mono", monospace'}}>JetBrains Mono</button>
+                              </div>
+                            </div>
+                        )}
 
-                      {/* NEW: Whitelist Sources */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1 text-green-600">
-                          <i className="fa-solid fa-check-circle"></i> Whitelist Sources (Optional)
-                        </label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g., Reuters, BBC, TechCrunch" 
-                          value={config.whitelistSources} 
-                          onChange={(e) => setConfig({ ...config, whitelistSources: e.target.value })} 
-                          className="w-full px-3 py-2 bg-green-50/50 border border-green-200 text-gray-900 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-sm transition-all" 
-                        />
-                        <p className="text-[11px] text-gray-500 mt-1">If provided, ONLY news from these sources will be shown. Leave blank to allow all.</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                          <i className="fa-regular fa-image"></i> Fallback Image URL
-                        </label>
-                        <input 
-                          type="url" 
-                          placeholder="https://example.com/fallback.jpg" 
-                          value={config.fallbackImage} 
-                          onChange={(e) => setConfig({ ...config, fallbackImage: e.target.value })} 
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
-                        />
-                        <p className="text-[11px] text-gray-500 mt-1">Displayed when a post contains no media.</p>
-                      </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-palette"></i> Accent Color</label>
+                          <div className="flex gap-2">
+                            {['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#0f172a'].map((color) => (
+                              <button key={color} onClick={() => setConfig({ ...config, accentColor: color })} className={`w-8 h-8 rounded-full border-2 transition-transform ${config.accentColor === color ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105'}`} style={{ backgroundColor: color }} aria-label={`Select color ${color}`} />
+                            ))}
+                          </div>
+                        </div>
+
+                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                              <i className="fa-solid fa-fill-drip"></i> Main Background
+                            </label>
+                            <div className="flex gap-2 items-center">
+                              <input type="color" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                              <input type="text" value={config.bgColor} onChange={(e) => setConfig({ ...config, bgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                              <i className="fa-solid fa-square"></i> Card Background
+                            </label>
+                            <div className="flex gap-2 items-center">
+                              <input type="color" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                              <input type="text" value={config.cardBgColor} onChange={(e) => setConfig({ ...config, cardBgColor: e.target.value })} className="px-3 py-1.5 bg-gray-50 border border-gray-300 text-gray-900 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all w-24 uppercase" />
+                            </div>
+                          </div>
+                        </div>
+                        )}
+                        
+                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                              <i className="fa-regular fa-image"></i> Fallback Image URL
+                            </label>
+                            <input 
+                              type="url" 
+                              placeholder="https://example.com/fallback.jpg" 
+                              value={config.fallbackImage} 
+                              onChange={(e) => setConfig({ ...config, fallbackImage: e.target.value })} 
+                              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
+                            />
+                        </div>
+                        )}
                     </div>
 
-                    {config.layout !== 'ticker' && (
+                    {(config.layout === 'list' || config.layout === 'grid' || config.layout === 'feed') && (
                       <div className="space-y-3 pt-2 border-t border-gray-100">
-                        {/* SEAMLESS EDGE-TO-EDGE TOGGLE */}
                         <label className="flex items-center justify-between cursor-pointer pb-2">
                           <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-expand"></i> Seamless (Edge-to-Edge)</span>
                           <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.seamless ? 'bg-blue-600' : 'bg-gray-300'}`}>
@@ -1489,6 +1902,50 @@
                       </div>
                     )}
 
+                    {config.layout === 'map' && (
+                        <div className="space-y-3 pt-2 border-t border-gray-100">
+                            <label className="flex items-center justify-between cursor-pointer pb-2">
+                              <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-expand"></i> Seamless (Edge-to-Edge)</span>
+                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.seamless ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                <input type="checkbox" className="sr-only" checked={config.seamless} onChange={(e) => setConfig({ ...config, seamless: e.target.checked })} />
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.seamless ? 'translate-x-4' : 'translate-x-1'}`} />
+                              </div>
+                            </label>
+                        </div>
+                    )}
+
+                    {/* NEW: SLIDESHOW SPECIFIC CONTROLS */}
+                    {config.layout === 'slideshow' && (
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-1"><i className="fa-solid fa-expand"></i> Graphic Scale</label>
+                            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.broadcastScale}%</span>
+                          </div>
+                          <input type="range" min="50" max="200" step="5" value={config.broadcastScale} onChange={(e) => setConfig({ ...config, broadcastScale: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                          <p className="text-[10px] text-gray-500 mt-1">Adjusts the overall size of the text and broadcast overlay.</p>
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-1"><i className="fa-solid fa-text-height"></i> Text Font Size</label>
+                            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.broadcastTextScale}%</span>
+                          </div>
+                          <input type="range" min="50" max="200" step="5" value={config.broadcastTextScale} onChange={(e) => setConfig({ ...config, broadcastTextScale: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-regular fa-image"></i> Lightbox Background Image</label>
+                          <input type="url" placeholder="https://example.com/bg.jpg" value={config.broadcastBgImage} onChange={(e) => setConfig({ ...config, broadcastBgImage: e.target.value })} className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" />
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-gray-700 flex items-center gap-1"><i className="fa-solid fa-droplet"></i> Background Opacity</label>
+                            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.broadcastBgOpacity}%</span>
+                          </div>
+                          <input type="range" min="0" max="100" step="5" value={config.broadcastBgOpacity} onChange={(e) => setConfig({ ...config, broadcastBgOpacity: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                        </div>
+                      </div>
+                    )}
+
                     {config.layout === 'ticker' && (
                       <div className="space-y-4 pt-4 border-t border-gray-100">
                         <div>
@@ -1508,15 +1965,20 @@
                       </div>
                     )}
 
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="text-sm font-medium text-gray-700">Max Items</label>
-                          <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.maxItems}</span>
+                    {/* Standard Data limit controls hidden from Slideshow since Slideshow gets everything */}
+                    {config.layout !== 'slideshow' && (
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="text-sm font-medium text-gray-700">Max Items</label>
+                              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.maxItems}</span>
+                            </div>
+                            <input type="range" min="1" max="15" step="1" value={config.maxItems} onChange={(e) => setConfig({ ...config, maxItems: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                          </div>
                         </div>
-                        <input type="range" min="1" max="15" step="1" value={config.maxItems} onChange={(e) => setConfig({ ...config, maxItems: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                      </div>
-                      
+                    )}
+                    
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <label className="text-sm font-medium text-gray-700 flex items-center gap-1"><i className="fa-solid fa-arrows-rotate"></i> Auto-Refresh</label>
@@ -1618,7 +2080,7 @@
                     
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -1653,7 +2115,7 @@
                         <div className="ml-4 flex-1 bg-white border border-gray-200 rounded text-[10px] px-2 py-1 text-gray-400 font-mono flex items-center">your-website.com</div>
                       </div>
 
-                      <div className={`relative w-full h-[500px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
+                      <div className={`relative w-full h-[700px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
                         
                         {/* Preview App Mute Overlay */}
                         {config.autoRead && (
@@ -1666,6 +2128,102 @@
                           </button>
                         )}
 
+                        {config.layout === 'map' && (
+                            <div className={`w-full h-full relative ${config.seamless ? '' : 'p-2'}`}>
+                                <div className={`w-full h-full relative overflow-hidden ${config.seamless ? '' : 'rounded-lg border shadow-sm'} ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-300'}`}>
+                                   <FeedMap items={displayItems} theme={config.theme} accentColor={config.accentColor} />
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* ========================================================= */}
+                        {/* NEW: SLIDESHOW LAYOUT WITH EMBEDDED PREVIEW */}
+                        {/* ========================================================= */}
+                        {config.layout === 'slideshow' && (() => {
+                            const videoItems = processedItems.filter(item => item.video);
+                            if (videoItems.length === 0) return <div className="p-8 text-center text-gray-500 w-full flex items-center justify-center h-full">No videos found matching your filters.</div>;
+                            
+                            const currentPreview = videoItems[slideshowPreviewIndex] || videoItems[0];
+                            
+                            const allSelected = videoItems.length > 0 && selectedVideos.length === videoItems.length;
+                            const handleSelectAll = () => {
+                                if (allSelected) setSelectedVideos([]);
+                                else setSelectedVideos(videoItems.map(i => i.id));
+                            };
+                            
+                            return (
+                                <div className={`w-full h-full flex flex-col relative ${config.seamless ? 'p-0' : 'p-4'}`}>
+                                    
+                                    {/* PREVIEW WINDOW */}
+                                    <div className="w-full aspect-video bg-gray-900 relative mb-4 rounded-xl overflow-hidden shadow-lg border border-gray-700 shrink-0">
+                                        {config.broadcastBgImage && <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />}
+                                        <video src={currentPreview.video} autoPlay loop muted playsInline className="w-full h-full object-contain relative z-10" />
+                                        
+                                        <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-3 sm:p-5 rounded-r-xl text-white shadow-2xl pointer-events-none z-20"
+                                             style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
+                                            <div className="text-[10px] font-bold text-blue-400 mb-1 uppercase tracking-widest flex items-center gap-1.5">
+                                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                                                {currentPreview.source || 'BREAKING NEWS'}
+                                            </div>
+                                            <h2 className="font-black mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentPreview.title)}</h2>
+                                            {currentPreview.description && <p className="text-gray-200 opacity-90 line-clamp-2 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{cleanText(currentPreview.description)}</p>}
+                                        </div>
+                                        <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm z-30 font-medium">Broadcast Preview</div>
+                                    </div>
+
+                                    {/* GRID HEADER */}
+                                    <div className="flex justify-between items-center mb-3 px-1 shrink-0">
+                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Available Videos ({videoItems.length})</span>
+                                        <button onClick={handleSelectAll} className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors shadow-sm border border-blue-200">
+                                            {allSelected ? 'Deselect All' : 'Select All'}
+                                        </button>
+                                    </div>
+
+                                    {/* GRID */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pb-24 embed-scroll flex-1">
+                                        {videoItems.map((item, idx) => {
+                                            const isSelected = selectedVideos.includes(item.id);
+                                            return (
+                                                <div key={item.id} 
+                                                     onClick={(e) => { e.preventDefault(); toggleVideoSelection(item.id); }}
+                                                     onMouseEnter={() => setSlideshowPreviewIndex(idx)}
+                                                     className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all ${isSelected ? 'border-blue-500 scale-[0.98] shadow-md' : 'border-transparent hover:border-gray-400'}`}>
+                                                    
+                                                    <div className="absolute top-2 left-2 z-20 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm transition-colors">
+                                                        {isSelected && <i className="fa-solid fa-check text-blue-600 text-sm"></i>}
+                                                    </div>
+                                                    
+                                                    <div className="w-full h-24 sm:h-32 bg-black relative pointer-events-none">
+                                                        <AutoPlayVideo src={item.video} poster={item.image} className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-60'}`} />
+                                                    </div>
+                                                    <div className="absolute bottom-0 left-0 right-0 p-2 pt-6 bg-gradient-to-t from-black to-transparent text-white pointer-events-none">
+                                                        <div className="text-xs font-medium line-clamp-2 leading-tight drop-shadow-md">{cleanText(item.title)}</div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    
+                                    {/* PLAY BUTTON */}
+                                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
+                                        <button 
+                                            onClick={() => {
+                                                const itemsToPlay = selectedVideos.length > 0 
+                                                    ? videoItems.filter(i => selectedVideos.includes(i.id))
+                                                    : videoItems; 
+                                                setLightbox({ type: 'slideshow', items: itemsToPlay, currentIndex: 0 });
+                                            }}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-full shadow-2xl font-bold flex items-center gap-3 transform transition hover:scale-105 whitespace-nowrap"
+                                        >
+                                            <i className="fa-solid fa-play text-lg"></i> 
+                                            {selectedVideos.length > 0 ? `Play ${selectedVideos.length} Selected` : 'Play All Videos'}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
                         <div className={`w-full h-full ${config.layout !== 'ticker' ? `preview-scroll overflow-y-auto ${config.seamless ? 'p-0' : 'p-4 sm:p-6'}` : 'flex items-center border-y'}`}>
                           
                           {config.layout === 'list' && (
@@ -1677,7 +2235,7 @@
                                   const hasMedia = item.video || item.isVideo || resolvedImage;
 
                                   return (
-                                    <div key={idx} className={`group flex flex-col sm:flex-row ${config.seamless ? 'gap-4 p-4' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                    <div key={idx} className={`group flex flex-col sm:flex-row ${config.seamless ? 'p-4 gap-4' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
                                       
                                       {config.showImages && hasMedia && (
                                         <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
@@ -1693,7 +2251,7 @@
                                             </div>
                                           ) : (
                                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: resolvedImage}); }}>
-                                              <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => e.target.style.display = 'none'} />
+                                              <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-105 transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-2xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           )}
@@ -1723,13 +2281,13 @@
 
                               {config.carouselMode && displayItems.length > 1 && (
                                 <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                   </button>
                                   <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                     {activeCarouselIndex + 1} / {displayItems.length}
                                   </span>
-                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
                                   </button>
                                 </div>
@@ -1801,7 +2359,7 @@
 
                               {config.carouselMode && displayItems.length > 1 && (
                                 <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
-                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                   </button>
                                   <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
@@ -1815,6 +2373,7 @@
                             </div>
                           )}
 
+                          {/* FEED LAYOUT */}
                           {config.layout === 'grid' && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
                               {displayItems.map((item, idx) => {
@@ -1903,6 +2462,7 @@
                             </div>
                           )}
                         </div>
+                      )}
                       </div>
                     </div>
                   )}
