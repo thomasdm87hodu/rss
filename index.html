@@ -334,7 +334,7 @@
                      style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
                     <div className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-widest flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                        {currentItem.source || 'BREAKING NEWS'}
+                        {config.sourceOverride || currentItem.source || 'BREAKING NEWS'}
                     </div>
                     <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
                         {truncateText(cleanText(currentItem.title), config.broadcastDescLimit)}
@@ -350,7 +350,7 @@
     };
 
     const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
-    const hostUrl = isLocalFile ? 'https://YOUR_VERCEL_PROJECT_URL.vercel.app' : ''; 
+    const hostUrl = isLocalFile ? 'https://rss-chi-five.vercel.app' : ''; 
     const myBackendUrl = `${hostUrl}/api/fetch`; 
     const myTtsUrl = `${hostUrl}/api/tts`;
 
@@ -423,6 +423,7 @@
         broadcastBgOpacity: 50,
         filterDate: new Date().toISOString().split('T')[0], // Default to today
         filterKeyword: '', 
+        sourceOverride: '',
       });
 
       const configRef = useRef(config);
@@ -1109,6 +1110,7 @@
             broadcastBgOpacity: params.get('bBgOp') ? parseInt(params.get('bBgOp')) : 50,
             filterDate: params.get('fDate') !== null ? params.get('fDate') : new Date().toISOString().split('T')[0],
             filterKeyword: params.get('fKey') ? decodeURIComponent(params.get('fKey')) : '',
+            sourceOverride: params.get('srcOver') ? decodeURIComponent(params.get('srcOver')) : '',
           });
 
           const targetUrl = params.get('url');
@@ -1150,7 +1152,7 @@
 
         const embedCode = `
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}&srcOver=${encodeURIComponent(config.sourceOverride)}" 
   width="${exportWidth}" 
   height="${exportHeight}" 
   frameborder="0" 
@@ -1204,6 +1206,18 @@
           setSelectedVideos(prev => 
               prev.includes(id) ? prev.filter(vidId => vidId !== id) : [...prev, id]
           );
+      };
+      
+      const moveVideo = (id, direction) => {
+          const idx = selectedVideos.indexOf(id);
+          if (idx < 0) return;
+          const newArr = [...selectedVideos];
+          if (direction === 'left' && idx > 0) {
+              [newArr[idx - 1], newArr[idx]] = [newArr[idx], newArr[idx - 1]];
+          } else if (direction === 'right' && idx < newArr.length - 1) {
+              [newArr[idx + 1], newArr[idx]] = [newArr[idx], newArr[idx + 1]];
+          }
+          setSelectedVideos(newArr);
       };
 
       // Apply All Filters
@@ -1315,7 +1329,7 @@
                        style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
                       <div className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-widest flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                          {currentItem.source || 'BREAKING NEWS'}
+                          {config.sourceOverride || currentItem.source || 'BREAKING NEWS'}
                       </div>
                       <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
                           {truncateText(cleanText(currentItem.title), config.broadcastDescLimit)}
@@ -1351,7 +1365,7 @@
                 <div className={`p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto ${config.theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-white text-slate-800'}`}>
                    <h2 className="text-2xl font-bold mb-4">{lightbox.data.title}</h2>
                    <div className="flex items-center gap-3 text-xs mb-6 opacity-70 font-medium">
-                       {lightbox.data.source && <span><i className="fa-solid fa-bullhorn mr-1"></i>{lightbox.data.source}</span>}
+                       {lightbox.data.source && <span><i className="fa-solid fa-bullhorn mr-1"></i>{config.sourceOverride || lightbox.data.source}</span>}
                        {lightbox.data.time && <span><i className="fa-regular fa-clock mr-1"></i>{timeAgo(lightbox.data.time)}</span>}
                    </div>
                    <p className="text-base leading-relaxed whitespace-pre-wrap">{lightbox.data.description}</p>
@@ -1464,7 +1478,7 @@
                                 {cleanText(item.title)}
                               </h3>
                               <div className={`flex items-center gap-3 text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
                                 {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
                               </div>
                               {config.showDescription && item.description && (
@@ -1542,7 +1556,7 @@
                                 {cleanText(item.title)}
                               </h3>
                               <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
                                 {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
                               </div>
                               {config.showDescription && item.description && (
@@ -1559,7 +1573,7 @@
 
                   {config.carouselMode && displayItems.length > 1 && (
                     <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
-                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
                       <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
@@ -1610,7 +1624,7 @@
                             {cleanText(item.title)}
                           </h3>
                           <div className={`flex items-center gap-2 text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{item.source}</span></span>}
+                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{config.sourceOverride || item.source}</span></span>}
                             {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
                           </div>
                           {config.showDescription && item.description && (
@@ -1636,7 +1650,7 @@
                       return (
                         <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                           <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
-                          {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
+                          {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{config.sourceOverride || item.source}]</span>}
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                           {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                         </a>
@@ -1650,7 +1664,7 @@
                       return (
                         <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                           <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
-                          {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
+                          {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{config.sourceOverride || item.source}]</span>}
                           <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                           {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                         </a>
@@ -1810,6 +1824,19 @@
                             placeholder="e.g., Dimona" 
                             value={config.filterKeyword} 
                             onChange={(e) => setConfig({ ...config, filterKeyword: e.target.value })} 
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                            <i className="fa-solid fa-bullhorn"></i> Source Name Override
+                          </label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g., Breaking Israel News" 
+                            value={config.sourceOverride} 
+                            onChange={(e) => setConfig({ ...config, sourceOverride: e.target.value })} 
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all" 
                           />
                         </div>
@@ -2145,7 +2172,7 @@
                     
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}&srcOver=${encodeURIComponent(config.sourceOverride)}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -2180,7 +2207,7 @@
                         <div className="ml-4 flex-1 bg-white border border-gray-200 rounded text-[10px] px-2 py-1 text-gray-400 font-mono flex items-center">your-website.com</div>
                       </div>
 
-                      <div className={`relative w-full h-[700px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
+                      <div className={`relative w-full h-[85vh] min-h-[800px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
                         
                         {/* Preview App Mute Overlay */}
                         {config.autoRead && (
@@ -2222,23 +2249,22 @@
                                 <div className={`w-full h-full flex flex-col relative ${config.seamless ? 'p-0' : 'p-4'}`}>
                                     
                                     {/* PREVIEW WINDOW */}
-                                    <div className="w-full aspect-video bg-gray-900 relative mb-4 rounded-xl overflow-hidden shadow-lg border border-gray-700 shrink-0 flex items-center justify-center p-4">
+                                    <div className="w-full max-w-2xl mx-auto aspect-video bg-gray-900 relative mb-4 rounded-xl overflow-hidden shadow-lg border border-gray-700 shrink-0 flex items-center justify-center p-4">
                                         {config.broadcastBgImage && <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />}
                                         
-                                        <div className="absolute inset-0 z-10 pointer-events-none shadow-[inset_0_0_200px_rgba(0,0,0,0.9)]"></div>
+                                        <div className="absolute inset-0 z-10 pointer-events-none" style={{ boxShadow: 'inset 0 0 150px 50px rgba(0,0,0,0.8)' }}></div>
 
-                                        <video src={currentPreview.video} autoPlay loop muted playsInline className="max-w-full max-h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} />
+                                        <video src={currentPreview.video} autoPlay loop muted playsInline className="w-full h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} />
                                         
                                         <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-3 sm:p-5 rounded-r-xl text-white shadow-2xl pointer-events-none z-20"
                                              style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
                                             <div className="text-[10px] font-bold text-blue-400 mb-1 uppercase tracking-widest flex items-center gap-1.5">
                                                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                                                {currentPreview.source || 'BREAKING NEWS'}
+                                                {config.sourceOverride || currentPreview.source || 'BREAKING NEWS'}
                                             </div>
                                             <h2 className="font-bold mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.title), config.broadcastDescLimit)}</h2>
                                             {currentPreview.description && <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description), config.broadcastDescLimit)}</p>}
                                         </div>
-                                        <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm z-30 font-medium">Broadcast Preview</div>
                                     </div>
 
                                     {/* GRID HEADER */}
@@ -2258,14 +2284,27 @@
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pb-24 embed-scroll flex-1 content-start p-1">
                                         {videoItems.map((item, idx) => {
                                             const isSelected = selectedVideos.includes(item.id);
+                                            const selectedIndex = selectedVideos.indexOf(item.id);
                                             return (
                                                 <div key={item.id} 
                                                      onClick={(e) => { e.preventDefault(); toggleVideoSelection(item.id); }}
                                                      onMouseEnter={() => setSlideshowPreviewIndex(idx)}
                                                      className={`relative flex flex-col cursor-pointer rounded-xl overflow-hidden border-2 transition-all min-h-[120px] ${isSelected ? 'border-blue-500 scale-[0.98] shadow-md' : 'border-transparent hover:border-gray-400 bg-gray-100 dark:bg-slate-800'}`}>
                                                     
-                                                    <div className="absolute top-2 left-2 z-20 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm transition-colors">
-                                                        {isSelected && <i className="fa-solid fa-check text-blue-600 text-sm"></i>}
+                                                    <div className="absolute top-2 left-2 z-20 transition-colors">
+                                                        {isSelected ? (
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                                                                    {selectedIndex + 1}
+                                                                </span>
+                                                                <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
+                                                                    <button onClick={() => moveVideo(item.id, 'left')} disabled={selectedIndex === 0} className="w-4 h-4 bg-white/90 hover:bg-white text-gray-800 rounded-sm flex items-center justify-center disabled:opacity-30"><i className="fa-solid fa-caret-left text-[10px]"></i></button>
+                                                                    <button onClick={() => moveVideo(item.id, 'right')} disabled={selectedIndex === selectedVideos.length - 1} className="w-4 h-4 bg-white/90 hover:bg-white text-gray-800 rounded-sm flex items-center justify-center disabled:opacity-30"><i className="fa-solid fa-caret-right text-[10px]"></i></button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm"></div>
+                                                        )}
                                                     </div>
                                                     
                                                     <div className="w-full aspect-video bg-black relative pointer-events-none shrink-0">
@@ -2295,7 +2334,7 @@
                                         <button 
                                             onClick={() => {
                                                 const itemsToPlay = selectedVideos.length > 0 
-                                                    ? videoItems.filter(i => selectedVideos.includes(i.id))
+                                                    ? selectedVideos.map(id => videoItems.find(v => v.id === id)).filter(Boolean)
                                                     : videoItems; 
                                                 setLightbox({ type: 'slideshow', items: itemsToPlay, currentIndex: 0 });
                                             }}
@@ -2350,7 +2389,7 @@
                                             {cleanText(item.title)}
                                           </h3>
                                           <div className={`flex items-center gap-3 text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
                                             {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
                                           </div>
                                           {config.showDescription && item.description && (
@@ -2367,13 +2406,13 @@
 
                               {config.carouselMode && displayItems.length > 1 && (
                                 <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                   </button>
                                   <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                     {activeCarouselIndex + 1} / {displayItems.length}
                                   </span>
-                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
                                   </button>
                                 </div>
@@ -2428,7 +2467,7 @@
                                             {cleanText(item.title)}
                                           </h3>
                                           <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{item.source}</span>}
+                                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
                                             {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
                                           </div>
                                           {config.showDescription && item.description && (
@@ -2496,7 +2535,7 @@
                                         {cleanText(item.title)}
                                       </h3>
                                       <div className={`flex items-center gap-2 text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                        {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{item.source}</span></span>}
+                                        {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{config.sourceOverride || item.source}</span></span>}
                                         {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
                                       </div>
                                       {config.showDescription && item.description && (
@@ -2522,7 +2561,7 @@
                                   return (
                                     <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                                       <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
-                                      {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
+                                      {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{config.sourceOverride || item.source}]</span>}
                                       <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                                       {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                                     </a>
@@ -2536,7 +2575,7 @@
                                   return (
                                     <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
                                       <span className="mr-3 text-xl leading-none shrink-0" style={{ color: config.accentColor }}>&bull;</span>
-                                      {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{item.source}]</span>}
+                                      {item.source && <span className="mr-2 font-bold text-[11px] uppercase tracking-wider opacity-60">[{config.sourceOverride || item.source}]</span>}
                                       <span className="font-medium text-sm hover:underline decoration-2 underline-offset-4" style={{ textDecorationColor: config.accentColor }}>{tTitle}</span>
                                       {item.time && <span className={`ml-2 text-[10px] opacity-70 ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>{timeAgo(item.time)}</span>}
                                     </a>
