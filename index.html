@@ -29,6 +29,36 @@
     ];
 
     // =====================================================================
+    // HOTZONE DICTIONARY
+    // =====================================================================
+    const HOTZONES = {
+        "Tehran": [35.6892, 51.3890], "Isfahan": [32.6539, 51.6660], "Kharg Island": [29.2333, 50.3167],
+        "Bandar Abbas": [29.1833, 56.2667], "Kermanshah": [34.3142, 47.0650], "Shiraz": [29.5918, 52.5836],
+        "Tabriz": [38.0700, 46.2919], "Natanz": [33.5833, 51.9333], "Qom": [34.6401, 50.8764], "Bushehr": [28.9234, 50.8203],
+        "Tel Aviv": [32.0853, 34.7818], "Jerusalem": [31.7683, 35.2137], "Gaza": [31.5017, 34.4668],
+        "Haifa": [32.7940, 34.9896], "Eilat": [29.5581, 34.9482], "Ashkelon": [31.6693, 34.5715],
+        "Ashdod": [31.8014, 34.6435], "Sderot": [31.5235, 34.5956], "Rafah": [31.2804, 34.2595],
+        "West Bank": [32.0000, 35.2500], "Golan Heights": [33.0000, 35.7500], "Tiberias": [32.7940, 35.5331],
+        "Safed": [32.9646, 35.4960], "Beersheba": [31.2518, 34.7913], "Negev": [30.5000, 34.8333],
+        "Beirut": [33.8938, 35.5018], "Dahieh": [33.8443, 35.5085], "Tyre": [33.2705, 35.1963],
+        "Sidon": [33.5571, 35.3729], "Baalbek": [34.0058, 36.2181], "Nabatieh": [33.3772, 35.4838],
+        "Bekaa Valley": [33.9984, 36.1469], "Marjayoun": [33.3606, 35.5900], "Litani": [33.3323, 35.2513],
+        "Damascus": [33.5138, 36.2765], "Aleppo": [36.2012, 37.1612], "Homs": [34.7324, 36.7137],
+        "Latakia": [35.5206, 35.7772], "Tartus": [34.8890, 35.8866], "Palmyra": [34.5504, 38.2810],
+        "Deir ez-Zor": [35.3353, 40.1436], "Idlib": [35.9306, 36.6339], "Quneitra": [33.1256, 35.8236],
+        "Sanaa": [15.3694, 44.1910], "Hodeidah": [14.7978, 42.9545], "Aden": [12.8000, 45.0333],
+        "Taiz": [13.5795, 44.0205], "Red Sea": [20.0000, 38.0000], "Gulf of Aden": [12.0000, 48.0000],
+        "Bab el-Mandeb": [12.5833, 43.3333], "Baghdad": [33.3152, 44.3661], "Erbil": [36.1901, 44.0090],
+        "Basra": [30.5081, 47.7835], "Al Asad": [33.7946, 42.4369], "Mosul": [36.3400, 43.1300],
+        "Kirkuk": [35.4681, 44.3922], "Camp Taji": [33.5350, 44.2540], "Abu Dhabi": [24.4539, 54.3773],
+        "Dubai": [25.2048, 55.2708], "UAE": [23.4241, 53.8478], "United Arab Emirates": [23.4241, 53.8478],
+        "Al Dhafra": [24.2483, 54.5476], "Persian Gulf": [26.0000, 52.0000], "Amman": [31.9522, 35.9334],
+        "Aqaba": [29.5267, 35.0078], "Zarqa": [32.0728, 36.0880], "Cairo": [30.0444, 31.2357],
+        "Sinai": [29.5000, 33.8333], "Suez": [29.9668, 32.5498], "Riyadh": [24.7136, 46.6753],
+        "Jeddah": [21.4858, 39.1925]
+    };
+
+    // =====================================================================
     // GLOBAL HELPERS
     // =====================================================================
     const formatDuration = (seconds) => {
@@ -945,15 +975,31 @@
               .embed-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
               `}
             `}</style>
+
+            {/* Mute Button Toggle in Embed */}
+            {config.autoRead && (
+              <button
+                onClick={toggleMute}
+                className={`absolute bottom-4 right-4 z-[9999] flex items-center justify-center w-10 h-10 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-105 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${isGlobalMuted ? 'bg-red-500/90 text-white' : 'bg-slate-800/80 text-white dark:bg-white/80 dark:text-slate-900'}`}
+                title={isGlobalMuted ? "Unmute Voice" : "Mute Voice"}
+              >
+                <i className={`fa-solid ${isGlobalMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
+              </button>
+            )}
+
+            {config.layout === 'map' && (
+                <div className={`w-full h-full relative ${config.seamless ? '' : 'p-2'}`}>
+                    <div className={`w-full h-full relative overflow-hidden ${config.seamless ? '' : 'rounded-lg border shadow-sm'} ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-300'}`}>
+                       <FeedMap items={displayItems} theme={config.theme} accentColor={config.accentColor} />
+                    </div>
+                </div>
+            )}
             
             {/* ========================================================= */}
             {/* EMBED SLIDESHOW LAYOUT (Auto-playing 16:9 Broadcast) */}
             {/* ========================================================= */}
             {config.layout === 'slideshow' && (() => {
-                let videoItems = processedItems.filter(item => item.video);
-                if (selectedVideos.length > 0) {
-                    videoItems = selectedVideos.map(id => videoItems.find(v => v.id === id)).filter(Boolean);
-                }
+                const videoItems = processedItems.filter(item => item.video);
                 if (videoItems.length === 0) return <div className="w-full h-screen flex items-center justify-center bg-black text-gray-500">No videos available in this feed.</div>;
                 
                 return <EmbedSlideshowPlayer 
@@ -966,7 +1012,7 @@
                        />;
             })()}
 
-            {config.layout !== 'slideshow' && (
+            {config.layout !== 'map' && config.layout !== 'slideshow' && (
             <div className={`w-full h-full ${config.layout !== 'ticker' ? `embed-scroll overflow-y-auto ${config.seamless ? 'p-0' : 'p-4'}` : 'flex items-center'}`}>
               
               {config.layout === 'list' && (
@@ -1143,7 +1189,7 @@
             .preview-scroll::-webkit-scrollbar { width: 6px; }
             .preview-scroll::-webkit-scrollbar-track { background: transparent; }
             .preview-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
-            ${(config.seamless || config.carouselMode || config.layout === 'slideshow') ? `
+            ${(config.seamless || config.carouselMode || config.layout === 'map' || config.layout === 'slideshow') ? `
             .preview-scroll::-webkit-scrollbar { display: none; width: 0px; }
             .preview-scroll { -ms-overflow-style: none; scrollbar-width: none; }
             ` : ''}
@@ -1445,6 +1491,18 @@
                       </div>
                     )}
 
+                    {config.layout === 'map' && (
+                        <div className="space-y-3 pt-2 border-t border-gray-100">
+                            <label className="flex items-center justify-between cursor-pointer pb-2">
+                              <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-expand"></i> Seamless (Edge-to-Edge)</span>
+                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.seamless ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                <input type="checkbox" className="sr-only" checked={config.seamless} onChange={(e) => setConfig({ ...config, seamless: e.target.checked })} />
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.seamless ? 'translate-x-4' : 'translate-x-1'}`} />
+                              </div>
+                            </label>
+                        </div>
+                    )}
+
                     {/* NEW: SLIDESHOW SPECIFIC CONTROLS */}
                     {config.layout === 'slideshow' && (
                       <div className="space-y-4 pt-4 border-t border-gray-100">
@@ -1524,6 +1582,70 @@
                         </div>
                         <input type="range" min="30" max="300" step="30" value={config.refreshRate} onChange={(e) => setConfig({ ...config, refreshRate: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                       </div>
+
+                      {/* Auto-Read Toggle */}
+                      <label className="flex items-center justify-between cursor-pointer pt-2">
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-microphone"></i> Auto-Read Updates (Voice)</span>
+                        <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.autoRead ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                          <input type="checkbox" className="sr-only" checked={config.autoRead} onChange={(e) => setConfig({ ...config, autoRead: e.target.checked })} />
+                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.autoRead ? 'translate-x-4' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
+                      
+                      {/* OpenAI Settings Block */}
+                      {config.autoRead && (
+                        <div className="pt-4 border-t border-gray-100 space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                              <i className="fa-solid fa-user-astronaut"></i> OpenAI Voice
+                            </label>
+                            <div className="flex gap-2">
+                              <select 
+                                value={config.openAIVoice} 
+                                onChange={(e) => setConfig({ ...config, openAIVoice: e.target.value })}
+                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all"
+                              >
+                                <option value="alloy">Alloy (Neutral)</option>
+                                <option value="echo">Echo (Male)</option>
+                                <option value="fable">Fable (British Male)</option>
+                                <option value="nova">Nova (Female)</option>
+                                <option value="onyx">Onyx (Deep Male)</option>
+                                <option value="shimmer">Shimmer (Soft Female)</option>
+                              </select>
+                              <button 
+                                onClick={handlePreviewVoice}
+                                disabled={isPreviewing}
+                                className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                title="Preview Voice"
+                              >
+                                {isPreviewing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high"></i>}
+                              </button>
+                            </div>
+                            <p className="text-[11px] text-green-600 mt-2"><i className="fa-solid fa-shield-halved"></i> Audio generated securely via your Vercel backend.</p>
+                          </div>
+                          
+                          {/* ICYMI Settings Block */}
+                          <div className="pt-2 border-t border-gray-100">
+                            <label className="flex items-center justify-between cursor-pointer">
+                              <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-rotate-left"></i> ICYMI Auto-Loop (Fills dead air)</span>
+                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.enableIcymi ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                <input type="checkbox" className="sr-only" checked={config.enableIcymi} onChange={(e) => setConfig({ ...config, enableIcymi: e.target.checked })} />
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.enableIcymi ? 'translate-x-4' : 'translate-x-1'}`} />
+                              </div>
+                            </label>
+                            
+                            {config.enableIcymi && (
+                                <div className="mt-4">
+                                  <div className="flex justify-between items-center mb-2">
+                                    <label className="text-xs font-medium text-gray-600">Minutes of silence before recap</label>
+                                    <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.icymiTime} min</span>
+                                  </div>
+                                  <input type="range" min="1" max="15" step="1" value={config.icymiTime} onChange={(e) => setConfig({ ...config, icymiTime: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                   </div>
@@ -1532,7 +1654,7 @@
                 <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-opacity duration-300 ${feedItems.length === 0 ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                   <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">3</span>
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">2</span>
                       <h2 className="font-semibold text-gray-800">Export Widget</h2>
                     </div>
                   </div>
@@ -1599,7 +1721,7 @@
                             if (videoItems.length === 0) return <div className="p-8 text-center text-gray-500 w-full flex items-center justify-center h-full">No videos found matching your filters.</div>;
                             
                             const currentPreview = videoItems[slideshowPreviewIndex] || videoItems[0];
-                            const isPreviewDescHidden = hiddenDescriptions.includes(currentPreview.id);
+                            const isPreviewDescHidden = currentPreview ? hiddenDescriptions.includes(currentPreview.id) : false;
                             
                             const allSelected = videoItems.length > 0 && selectedVideos.length === videoItems.length;
                             const handleSelectAll = () => {
@@ -1632,9 +1754,7 @@
                                                 {config.sourceOverride || currentPreview.source || 'BREAKING NEWS'}
                                             </div>
                                             <h2 className="font-bold mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.title, config.removeText), config.broadcastDescLimit)}</h2>
-                                            {!isPreviewDescHidden && currentPreview.description && (
-                                                <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description, config.removeText), config.broadcastDescLimit)}</p>
-                                            )}
+                                            {!isPreviewDescHidden && currentPreview.description && <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description, config.removeText), config.broadcastDescLimit)}</p>}
                                         </div>
                                         <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm z-30 font-medium">Broadcast Preview</div>
                                     </div>
