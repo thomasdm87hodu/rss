@@ -65,7 +65,7 @@
     };
 
     // =====================================================================
-    // Helper: Format Duration (Seconds to MM:SS)
+    // GLOBAL HELPERS
     // =====================================================================
     const formatDuration = (seconds) => {
         if (!seconds || isNaN(seconds)) return '00:00';
@@ -74,9 +74,34 @@
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    // =====================================================================
-    // Helper: Cinematic Video Edge Mask
-    // =====================================================================
+    const cleanText = (str, removeText) => {
+        if (!str) return '';
+        if (!removeText) return str.trim();
+        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return str.replace(new RegExp(escapeRegExp(removeText), 'gi'), '').trim();
+    };
+
+    const truncateText = (str, limit) => {
+        if (!str) return '';
+        if (str.length <= limit) return str;
+        return str.substring(0, limit) + '...';
+    };
+
+    const timeAgo = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const seconds = Math.round((now - date) / 1000);
+        const minutes = Math.round(seconds / 60);
+        const hours = Math.round(minutes / 60);
+        const days = Math.round(hours / 24);
+
+        if (seconds < 60) return 'Just now';
+        if (minutes < 60) return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
+        if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        return `${days} day${days > 1 ? 's' : ''} ago`;
+    };
+
     const videoMaskStyle = {
         WebkitMaskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 80%, transparent 100%)',
         maskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 80%, transparent 100%)'
@@ -239,49 +264,10 @@
         );
     };
 
-    const AutoPlayVideo = ({ src, poster, className, style, onDurationReady }) => {
-      const videoRef = useRef(null);
-      
-      useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-
-        video.muted = true;
-        video.defaultMuted = true;
-        video.setAttribute('playsinline', '');
-        video.setAttribute('muted', '');
-
-        const tryPlay = () => {
-          const playPromise = video.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(error => console.log("Autoplay prevented:", error));
-          }
-        };
-        
-        const handleMetadata = () => {
-           if (onDurationReady && video.duration) {
-               onDurationReady(video.duration);
-           }
-           tryPlay();
-        };
-
-        tryPlay();
-        video.addEventListener('canplay', tryPlay);
-        video.addEventListener('loadedmetadata', handleMetadata);
-
-        return () => {
-          video.removeEventListener('canplay', tryPlay);
-          video.removeEventListener('loadedmetadata', handleMetadata);
-        };
-      }, [src, onDurationReady]);
-
-      return <video ref={videoRef} src={src} poster={poster} referrerPolicy="no-referrer" autoPlay loop muted playsInline className={className} style={style} />;
-    };
-
     // =====================================================================
     // Helper: Embed Slideshow Player (Handles Autoplay Policies)
     // =====================================================================
-    const EmbedSlideshowPlayer = ({ currentItem, config, cleanText, truncateText, onEnded }) => {
+    const EmbedSlideshowPlayer = ({ currentItem, config, onEnded }) => {
         const videoRef = useRef(null);
         const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
@@ -337,11 +323,11 @@
                         {config.sourceOverride || currentItem.source || 'BREAKING NEWS'}
                     </div>
                     <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
-                        {truncateText(cleanText(currentItem.title), config.broadcastDescLimit)}
+                        {truncateText(cleanText(currentItem.title, config.removeText), config.broadcastDescLimit)}
                     </h2>
                     {currentItem.description && (
                         <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
-                            {truncateText(cleanText(currentItem.description), config.broadcastDescLimit)}
+                            {truncateText(cleanText(currentItem.description, config.removeText), config.broadcastDescLimit)}
                         </p>
                     )}
                 </div>
@@ -389,7 +375,7 @@
 
       // Selected Videos State for Slideshow Mode
       const [selectedVideos, setSelectedVideos] = useState([]);
-      const [videoDurations, setVideoDurations] = useState({});
+      const [videoDurations, setVideoDurations] = useState({}); // Tracking est time
       const [embedSlideshowIndex, setEmbedSlideshowIndex] = useState(0);
       const [slideshowPreviewIndex, setSlideshowPreviewIndex] = useState(0);
 
@@ -601,14 +587,9 @@
           let title = feedItems[0].title;
           let description = feedItems[0].description || '';
           
-          if (config.removeText) {
-             const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-             title = title.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
-             description = description.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
-          }
-          
-          textToRead = "Latest Update: " + title;
-          if (description && description.length > 10) textToRead += ". " + description;
+          textToRead = "Latest Update: " + cleanText(title, config.removeText);
+          const cleanedDesc = cleanText(description, config.removeText);
+          if (cleanedDesc && cleanedDesc.length > 10) textToRead += ". " + cleanedDesc;
         }
         
         speakText(textToRead, { forceApi: true });
@@ -635,14 +616,8 @@
                const randomItem = recentItems[Math.floor(Math.random() * recentItems.length)];
                
                if (randomItem) {
-                   let textToRead = randomItem.title;
-                   let description = randomItem.description || '';
-                   
-                   if (config.removeText) {
-                       const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                       textToRead = textToRead.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
-                       description = description.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
-                   }
+                   let textToRead = cleanText(randomItem.title, config.removeText);
+                   let description = cleanText(randomItem.description || '', config.removeText);
                    
                    if (description && description.length > 10) textToRead += ". " + description;
                    
@@ -1036,14 +1011,8 @@
                            if (badWords.length > 0 && badWords.some(badWord => textContent.includes(badWord))) return;
                            if (goodSources.length > 0 && !goodSources.some(goodSource => itemSource.includes(goodSource))) return;
 
-                           let textToRead = item.title;
-                           let description = item.description || '';
-                           
-                           if (currentRemoveText) {
-                               const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                               textToRead = textToRead.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
-                               description = description.replace(new RegExp(escapeRegExp(currentRemoveText), 'gi'), '').trim();
-                           }
+                           let textToRead = cleanText(item.title, currentRemoveText);
+                           let description = cleanText(item.description || '', currentRemoveText);
                            
                            let combinedRead = "Latest Update: " + textToRead;
                            if (description && description.length > 10) {
@@ -1175,33 +1144,6 @@
         document.body.removeChild(textArea);
       };
 
-      const cleanText = (str) => {
-        if (!str || !config.removeText) return str;
-        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return str.replace(new RegExp(escapeRegExp(config.removeText), 'gi'), '').trim();
-      };
-
-      const truncateText = (str, limit) => {
-        if (!str) return '';
-        if (str.length <= limit) return str;
-        return str.substring(0, limit) + '...';
-      };
-
-      const timeAgo = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        const now = new Date();
-        const seconds = Math.round((now - date) / 1000);
-        const minutes = Math.round(seconds / 60);
-        const hours = Math.round(minutes / 60);
-        const days = Math.round(hours / 24);
-
-        if (seconds < 60) return 'Just now';
-        if (minutes < 60) return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
-        if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-        return `${days} day${days > 1 ? 's' : ''} ago`;
-      };
-
       const toggleVideoSelection = (id) => {
           setSelectedVideos(prev => 
               prev.includes(id) ? prev.filter(vidId => vidId !== id) : [...prev, id]
@@ -1220,7 +1162,7 @@
           setSelectedVideos(newArr);
       };
 
-      // Apply All Filters
+      // Apply All Filters safely
       let processedItems = feedItems;
       
       if (config.filterDate) {
@@ -1306,6 +1248,9 @@
                       <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />
                   )}
                   
+                  {/* Cinematic Vignette Overlay to soften video edges */}
+                  <div className="absolute inset-0 z-10 pointer-events-none" style={{ boxShadow: 'inset 0 0 150px 50px rgba(0,0,0,0.8)' }}></div>
+
                   <div className="absolute inset-0 flex items-center justify-center p-8 sm:p-16 z-[5]">
                       <video 
                         key={currentItem.id} 
@@ -1332,11 +1277,11 @@
                           {config.sourceOverride || currentItem.source || 'BREAKING NEWS'}
                       </div>
                       <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
-                          {truncateText(cleanText(currentItem.title), config.broadcastDescLimit)}
+                          {truncateText(cleanText(currentItem.title, config.removeText), config.broadcastDescLimit)}
                       </h2>
                       {currentItem.description && (
                           <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
-                              {truncateText(cleanText(currentItem.description), config.broadcastDescLimit)}
+                              {truncateText(cleanText(currentItem.description, config.removeText), config.broadcastDescLimit)}
                           </p>
                       )}
                   </div>
@@ -1363,12 +1308,12 @@
                 <iframe src={iframeUrl} className="w-full h-[80vh] max-w-2xl bg-transparent rounded-lg shadow-2xl border-0" allow="autoplay; fullscreen" allowFullScreen></iframe>
               ) : lightbox.type === 'text' ? (
                 <div className={`p-8 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto ${config.theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-white text-slate-800'}`}>
-                   <h2 className="text-2xl font-bold mb-4">{lightbox.data.title}</h2>
+                   <h2 className="text-2xl font-bold mb-4">{cleanText(lightbox.data.title, config.removeText)}</h2>
                    <div className="flex items-center gap-3 text-xs mb-6 opacity-70 font-medium">
                        {lightbox.data.source && <span><i className="fa-solid fa-bullhorn mr-1"></i>{config.sourceOverride || lightbox.data.source}</span>}
                        {lightbox.data.time && <span><i className="fa-regular fa-clock mr-1"></i>{timeAgo(lightbox.data.time)}</span>}
                    </div>
-                   <p className="text-base leading-relaxed whitespace-pre-wrap">{lightbox.data.description}</p>
+                   <p className="text-base leading-relaxed whitespace-pre-wrap">{cleanText(lightbox.data.description, config.removeText)}</p>
                    <div className="mt-8 pt-4 border-t border-inherit opacity-50 flex justify-between items-center">
                        <a href={lightbox.data.link} target="_blank" rel="noreferrer" className="hover:underline text-sm"><i className="fa-solid fa-arrow-up-right-from-square mr-1"></i> View Original Source</a>
                    </div>
@@ -1431,8 +1376,8 @@
                 return <EmbedSlideshowPlayer 
                            currentItem={videoItems[embedSlideshowIndex % videoItems.length]} 
                            config={config} 
-                           cleanText={cleanText}
-                           truncateText={truncateText}
+                           cleanTextFn={(str) => cleanText(str, config.removeText)}
+                           truncateTextFn={truncateText}
                            onEnded={() => setEmbedSlideshowIndex(prev => prev + 1)} 
                        />;
             })()}
@@ -1455,7 +1400,7 @@
                             <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                               {item.video ? (
                                 <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                  <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                  <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                 </div>
                               ) : item.isVideo ? (
@@ -1475,7 +1420,7 @@
                           <div className="flex flex-col justify-center flex-1 min-w-0">
                             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                               <h3 className="font-semibold text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
-                                {cleanText(item.title)}
+                                {cleanText(item.title, config.removeText)}
                               </h3>
                               <div className={`flex items-center gap-3 text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                                 {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
@@ -1483,7 +1428,7 @@
                               </div>
                               {config.showDescription && item.description && (
                                 <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
-                                  {cleanText(item.description)}
+                                  {cleanText(item.description, config.removeText)}
                                 </p>
                               )}
                             </a>
@@ -1499,84 +1444,6 @@
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
                       <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
-                        {activeCarouselIndex + 1} / {displayItems.length}
-                      </span>
-                      <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
-                        Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* FEED LAYOUT */}
-              {config.layout === 'feed' && (
-                <div className={`relative w-full group/carousel ${config.seamless ? 'h-full flex flex-col' : ''}`}>
-                  <div className={`${config.seamless ? 'space-y-0 pb-0 flex-1 h-full' : 'space-y-6 pb-2'}`}>
-                    {displayItems.map((item, idx) => {
-                      if (config.carouselMode && idx !== activeCarouselIndex) return null;
-                      const resolvedImage = item.image || config.fallbackImage;
-                      const hasMedia = item.video || item.isVideo || resolvedImage;
-
-                      return (
-                        <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
-                          
-                          {config.showImages && hasMedia && (
-                            <div className={`w-full overflow-hidden bg-black/90 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
-                              
-                              {/* Cinematic Background Blur */}
-                              {resolvedImage && (
-                                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-                                  <img src={resolvedImage} className="w-full h-full object-cover filter blur-2xl grayscale opacity-40 scale-125" aria-hidden="true" onError={(e) => e.target.style.display = 'none'} />
-                                </div>
-                              )}
-
-                              {item.video ? (
-                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                  <AutoPlayVideo src={item.video} poster={resolvedImage} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
-                                </div>
-                              ) : item.isVideo ? (
-                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
-                                  {resolvedImage && <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
-                                  <div className={`absolute inset-0 flex items-center justify-center transition-colors ${resolvedImage ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
-                                </div>
-                              ) : (
-                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: resolvedImage}); }}>
-                                  <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          <div className={`flex flex-col justify-center min-w-0 ${config.seamless ? 'p-4 shrink-0' : 'flex-1 px-1'}`}>
-                            <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-                              <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
-                                {cleanText(item.title)}
-                              </h3>
-                              <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
-                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
-                                {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
-                              </div>
-                              {config.showDescription && item.description && (
-                                <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
-                                  {cleanText(item.description)}
-                                </p>
-                              )}
-                            </a>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {config.carouselMode && displayItems.length > 1 && (
-                    <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
-                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
-                        <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
-                      </button>
-                      <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
                         {activeCarouselIndex + 1} / {displayItems.length}
                       </span>
                       <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
@@ -1600,7 +1467,7 @@
                         <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                              <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                              <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           ) : item.isVideo ? (
@@ -1621,7 +1488,7 @@
                       <div className="p-4 flex flex-col flex-1">
                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                           <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
-                            {cleanText(item.title)}
+                            {cleanText(item.title, config.removeText)}
                           </h3>
                           <div className={`flex items-center gap-2 text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                             {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{config.sourceOverride || item.source}</span></span>}
@@ -1629,7 +1496,7 @@
                           </div>
                           {config.showDescription && item.description && (
                             <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
-                              {cleanText(item.description)}
+                              {cleanText(item.description, config.removeText)}
                             </p>
                           )}
                         </a>
@@ -1645,7 +1512,7 @@
                   
                   <div className="flex animate-marquee shrink-0 items-center">
                     {displayItems.concat(displayItems).map((item, idx) => {
-                      const cTitle = cleanText(item.title);
+                      const cTitle = cleanText(item.title, config.removeText);
                       const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                       return (
                         <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
@@ -1659,7 +1526,7 @@
                   </div>
                   <div className="flex animate-marquee shrink-0 items-center" aria-hidden="true">
                     {displayItems.concat(displayItems).map((item, idx) => {
-                      const cTitle = cleanText(item.title);
+                      const cTitle = cleanText(item.title, config.removeText);
                       const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                       return (
                         <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
@@ -2207,7 +2074,7 @@
                         <div className="ml-4 flex-1 bg-white border border-gray-200 rounded text-[10px] px-2 py-1 text-gray-400 font-mono flex items-center">your-website.com</div>
                       </div>
 
-                      <div className={`relative w-full h-[85vh] min-h-[800px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
+                      <div className={`relative w-full h-[700px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
                         
                         {/* Preview App Mute Overlay */}
                         {config.autoRead && (
@@ -2229,7 +2096,7 @@
                         )}
                         
                         {/* ========================================================= */}
-                        {/* NEW: SLIDESHOW LAYOUT WITH EMBEDDED PREVIEW */}
+                        {/* SLIDESHOW LAYOUT WITH EMBEDDED PREVIEW */}
                         {/* ========================================================= */}
                         {config.layout === 'slideshow' && (() => {
                             const videoItems = processedItems.filter(item => item.video);
@@ -2252,9 +2119,11 @@
                                     <div className="w-full max-w-2xl mx-auto aspect-video bg-gray-900 relative mb-4 rounded-xl overflow-hidden shadow-lg border border-gray-700 shrink-0 flex items-center justify-center p-4">
                                         {config.broadcastBgImage && <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />}
                                         
+                                        {/* Cinematic Vignette Overlay to soften video edges */}
                                         <div className="absolute inset-0 z-10 pointer-events-none" style={{ boxShadow: 'inset 0 0 150px 50px rgba(0,0,0,0.8)' }}></div>
 
-                                        <video src={currentPreview.video} autoPlay loop muted playsInline className="w-full h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} />
+                                        {/* PREVIEW WINDOW (NO AUTOPLAY) */}
+                                        <video key={currentPreview.id} src={currentPreview.video} poster={currentPreview.image} preload="metadata" muted playsInline className="max-w-full max-h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} />
                                         
                                         <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-3 sm:p-5 rounded-r-xl text-white shadow-2xl pointer-events-none z-20"
                                              style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
@@ -2262,8 +2131,8 @@
                                                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                                                 {config.sourceOverride || currentPreview.source || 'BREAKING NEWS'}
                                             </div>
-                                            <h2 className="font-bold mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.title), config.broadcastDescLimit)}</h2>
-                                            {currentPreview.description && <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description), config.broadcastDescLimit)}</p>}
+                                            <h2 className="font-bold mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.title, config.removeText), config.broadcastDescLimit)}</h2>
+                                            {currentPreview.description && <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description, config.removeText), config.broadcastDescLimit)}</p>}
                                         </div>
                                     </div>
 
@@ -2308,21 +2177,25 @@
                                                     </div>
                                                     
                                                     <div className="w-full aspect-video bg-black relative pointer-events-none shrink-0">
-                                                        <AutoPlayVideo 
+                                                        {/* STATIC VIDEO PREVIEW WITH METADATA CAPTURE */}
+                                                        <video 
                                                             src={item.video} 
                                                             poster={item.image} 
+                                                            preload="metadata" 
+                                                            muted 
+                                                            playsInline 
                                                             className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-60'}`}
-                                                            onDurationReady={(dur) => {
-                                                                setVideoDurations(prev => {
-                                                                    if (prev[item.id] === dur) return prev;
-                                                                    return { ...prev, [item.id]: dur };
-                                                                });
+                                                            onLoadedMetadata={(e) => {
+                                                                const dur = e.target.duration;
+                                                                if (dur && dur !== Infinity) {
+                                                                    setVideoDurations(prev => prev[item.id] === dur ? prev : { ...prev, [item.id]: dur });
+                                                                }
                                                             }} 
                                                         />
                                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                                                     </div>
                                                     <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none">
-                                                        <div className="text-xs font-medium line-clamp-2 leading-tight text-white drop-shadow-md">{cleanText(item.title)}</div>
+                                                        <div className="text-xs font-medium line-clamp-2 leading-tight text-white drop-shadow-md">{cleanText(item.title, config.removeText)}</div>
                                                     </div>
                                                 </div>
                                             );
@@ -2366,7 +2239,7 @@
                                         <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                                           {item.video ? (
                                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                              <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                              <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
@@ -2386,7 +2259,7 @@
                                       <div className="flex flex-col justify-center flex-1 min-w-0">
                                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                                           <h3 className="font-semibold text-base leading-tight mb-1 line-clamp-2 group-hover:underline decoration-2 underline-offset-2" style={{ textDecorationColor: config.accentColor }}>
-                                            {cleanText(item.title)}
+                                            {cleanText(item.title, config.removeText)}
                                           </h3>
                                           <div className={`flex items-center gap-3 text-[10px] mb-2 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                                             {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
@@ -2394,7 +2267,7 @@
                                           </div>
                                           {config.showDescription && item.description && (
                                             <p className={`text-sm line-clamp-2 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
-                                              {cleanText(item.description)}
+                                              {cleanText(item.description, config.removeText)}
                                             </p>
                                           )}
                                         </a>
@@ -2444,7 +2317,7 @@
 
                                           {item.video ? (
                                             <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                              <AutoPlayVideo src={item.video} poster={resolvedImage} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
+                                              <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
@@ -2464,7 +2337,7 @@
                                       <div className={`flex flex-col justify-center min-w-0 ${config.seamless ? 'p-4 shrink-0' : 'flex-1 px-1'}`}>
                                         <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
                                           <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
-                                            {cleanText(item.title)}
+                                            {cleanText(item.title, config.removeText)}
                                           </h3>
                                           <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                                             {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
@@ -2472,7 +2345,7 @@
                                           </div>
                                           {config.showDescription && item.description && (
                                             <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
-                                              {cleanText(item.description)}
+                                              {cleanText(item.description, config.removeText)}
                                             </p>
                                           )}
                                         </a>
@@ -2487,7 +2360,7 @@
                                   <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                   </button>
-                                  <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
+                                  <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
                                     {activeCarouselIndex + 1} / {displayItems.length}
                                   </span>
                                   <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
@@ -2511,7 +2384,7 @@
                                     <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                       {item.video ? (
                                         <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                          <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                          <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                           <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                         </div>
                                       ) : item.isVideo ? (
@@ -2532,7 +2405,7 @@
                                   <div className="p-4 flex flex-col flex-1">
                                     <a href={item.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                                       <h3 className="font-bold text-sm leading-snug mb-1 group-hover:underline decoration-2 underline-offset-2 line-clamp-2" style={{ textDecorationColor: config.accentColor }}>
-                                        {cleanText(item.title)}
+                                        {cleanText(item.title, config.removeText)}
                                       </h3>
                                       <div className={`flex items-center gap-2 text-[10px] mb-1.5 font-medium ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
                                         {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i><span className="truncate max-w-[80px]">{config.sourceOverride || item.source}</span></span>}
@@ -2540,7 +2413,7 @@
                                       </div>
                                       {config.showDescription && item.description && (
                                         <p className={`text-xs mt-auto line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
-                                          {cleanText(item.description)}
+                                          {cleanText(item.description, config.removeText)}
                                         </p>
                                       )}
                                     </a>
@@ -2556,7 +2429,7 @@
                               
                               <div className="flex animate-marquee shrink-0 items-center">
                                 {displayItems.concat(displayItems).map((item, idx) => {
-                                  const cTitle = cleanText(item.title);
+                                  const cTitle = cleanText(item.title, config.removeText);
                                   const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                                   return (
                                     <a key={`t1-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
@@ -2570,7 +2443,7 @@
                               </div>
                               <div className="flex animate-marquee shrink-0 items-center" aria-hidden="true">
                                 {displayItems.concat(displayItems).map((item, idx) => {
-                                  const cTitle = cleanText(item.title);
+                                  const cTitle = cleanText(item.title, config.removeText);
                                   const tTitle = cTitle.length > config.tickerCharLimit ? cTitle.substring(0, config.tickerCharLimit) + '...' : cTitle;
                                   return (
                                     <a key={`t2-${idx}`} href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-6 whitespace-nowrap group">
