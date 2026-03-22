@@ -6,19 +6,13 @@
   <title>FeedWeaver - RSS Widget Generator</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
-  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
@@ -33,36 +27,6 @@
       { id: '3', title: 'Heavy strikes reported in southern Beirut suburbs', link: '#', description: 'Extensive damage reported following a series of strikes in the Dahieh suburb of Beirut.', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date().toISOString(), source: 'Regional Updates' },
       { id: '4', title: 'French Rafale jets intercept Iranian drones targeting UAE', link: '#', description: 'France mobilized its permanently stationed Dassault Rafale fighter jets from Al Dhafra Air Base near Abu Dhabi for intensified patrols.', image: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&q=80&w=400&h=250', video: '', isVideo: false, embedUrl: '', time: new Date().toISOString(), source: 'Breaking Israel News' },
     ];
-
-    // =====================================================================
-    // HOTZONE DICTIONARY
-    // =====================================================================
-    const HOTZONES = {
-        "Tehran": [35.6892, 51.3890], "Isfahan": [32.6539, 51.6660], "Kharg Island": [29.2333, 50.3167],
-        "Bandar Abbas": [29.1833, 56.2667], "Kermanshah": [34.3142, 47.0650], "Shiraz": [29.5918, 52.5836],
-        "Tabriz": [38.0700, 46.2919], "Natanz": [33.5833, 51.9333], "Qom": [34.6401, 50.8764], "Bushehr": [28.9234, 50.8203],
-        "Tel Aviv": [32.0853, 34.7818], "Jerusalem": [31.7683, 35.2137], "Gaza": [31.5017, 34.4668],
-        "Haifa": [32.7940, 34.9896], "Eilat": [29.5581, 34.9482], "Ashkelon": [31.6693, 34.5715],
-        "Ashdod": [31.8014, 34.6435], "Sderot": [31.5235, 34.5956], "Rafah": [31.2804, 34.2595],
-        "West Bank": [32.0000, 35.2500], "Golan Heights": [33.0000, 35.7500], "Tiberias": [32.7940, 35.5331],
-        "Safed": [32.9646, 35.4960], "Beersheba": [31.2518, 34.7913], "Negev": [30.5000, 34.8333],
-        "Beirut": [33.8938, 35.5018], "Dahieh": [33.8443, 35.5085], "Tyre": [33.2705, 35.1963],
-        "Sidon": [33.5571, 35.3729], "Baalbek": [34.0058, 36.2181], "Nabatieh": [33.3772, 35.4838],
-        "Bekaa Valley": [33.9984, 36.1469], "Marjayoun": [33.3606, 35.5900], "Litani": [33.3323, 35.2513],
-        "Damascus": [33.5138, 36.2765], "Aleppo": [36.2012, 37.1612], "Homs": [34.7324, 36.7137],
-        "Latakia": [35.5206, 35.7772], "Tartus": [34.8890, 35.8866], "Palmyra": [34.5504, 38.2810],
-        "Deir ez-Zor": [35.3353, 40.1436], "Idlib": [35.9306, 36.6339], "Quneitra": [33.1256, 35.8236],
-        "Sanaa": [15.3694, 44.1910], "Hodeidah": [14.7978, 42.9545], "Aden": [12.8000, 45.0333],
-        "Taiz": [13.5795, 44.0205], "Red Sea": [20.0000, 38.0000], "Gulf of Aden": [12.0000, 48.0000],
-        "Bab el-Mandeb": [12.5833, 43.3333], "Baghdad": [33.3152, 44.3661], "Erbil": [36.1901, 44.0090],
-        "Basra": [30.5081, 47.7835], "Al Asad": [33.7946, 42.4369], "Mosul": [36.3400, 43.1300],
-        "Kirkuk": [35.4681, 44.3922], "Camp Taji": [33.5350, 44.2540], "Abu Dhabi": [24.4539, 54.3773],
-        "Dubai": [25.2048, 55.2708], "UAE": [23.4241, 53.8478], "United Arab Emirates": [23.4241, 53.8478],
-        "Al Dhafra": [24.2483, 54.5476], "Persian Gulf": [26.0000, 52.0000], "Amman": [31.9522, 35.9334],
-        "Aqaba": [29.5267, 35.0078], "Zarqa": [32.0728, 36.0880], "Cairo": [30.0444, 31.2357],
-        "Sinai": [29.5000, 33.8333], "Suez": [29.9668, 32.5498], "Riyadh": [24.7136, 46.6753],
-        "Jeddah": [21.4858, 39.1925]
-    };
 
     // =====================================================================
     // GLOBAL HELPERS
@@ -107,167 +71,49 @@
         maskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 80%, transparent 100%)'
     };
 
-    // =====================================================================
-    // Helper: Leaflet Map Component with Cinematic Auto-Tracking Alerts
-    // =====================================================================
-    const FeedMap = ({ items, theme, accentColor, onMarkerClick }) => {
-        const mapRef = useRef(null);
-        const mapInstance = useRef(null);
-        const markersLayerRef = useRef(null);
-        const prevFirstItemId = useRef(null);
+    const AutoPlayVideo = ({ src, poster, className, style, onDurationReady }) => {
+      const videoRef = useRef(null);
+      
+      useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        video.muted = true;
+        video.defaultMuted = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('muted', '');
+
+        const tryPlay = () => {
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => console.log("Autoplay prevented:", error));
+          }
+        };
         
-        const [flashAlert, setFlashAlert] = useState(null);
+        const handleMetadata = () => {
+           if (onDurationReady && video.duration) {
+               onDurationReady(video.duration);
+           }
+           tryPlay();
+        };
 
-        useEffect(() => {
-            if (!mapRef.current) return;
+        tryPlay();
+        video.addEventListener('canplay', tryPlay);
+        video.addEventListener('loadedmetadata', handleMetadata);
 
-            if (!mapInstance.current) {
-                mapInstance.current = L.map(mapRef.current, { zoomControl: false }).setView([32.5, 43.0], 5);
-                markersLayerRef.current = L.layerGroup().addTo(mapInstance.current);
-            }
+        return () => {
+          video.removeEventListener('canplay', tryPlay);
+          video.removeEventListener('loadedmetadata', handleMetadata);
+        };
+      }, [src, onDurationReady]);
 
-            const isDark = theme === 'dark';
-            const tileUrl = isDark 
-                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-            
-            mapInstance.current.eachLayer((layer) => {
-                if (layer instanceof L.TileLayer) {
-                    mapInstance.current.removeLayer(layer);
-                }
-            });
-
-            L.tileLayer(tileUrl, {
-                attribution: '&copy; OpenStreetMap',
-                subdomains: 'abcd',
-                maxZoom: 10
-            }).addTo(mapInstance.current);
-
-            markersLayerRef.current.clearLayers();
-
-            const pulseIcon = L.divIcon({
-                className: 'custom-pulse-marker',
-                html: `<div style="background-color: ${accentColor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${accentColor}; position: relative;">
-                         <div style="position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px; border-radius: 50%; border: 2px solid ${accentColor}; animation: pulse 1.5s infinite;"></div>
-                       </div>`,
-                iconSize: [14, 14],
-                iconAnchor: [7, 7]
-            });
-
-            const plottedLocations = new Set();
-            let latestPlottedZone = null;
-            let latestPlottedCoords = null;
-            let latestPlottedMarker = null;
-
-            items.forEach((item, idx) => {
-                const fullText = (item.title + " " + item.description).toLowerCase();
-                let hasPlotted = false;
-                
-                const sortedZones = Object.keys(HOTZONES).sort((a, b) => b.length - a.length);
-                
-                for (const zone of sortedZones) {
-                    if (hasPlotted) break; 
-
-                    const zoneRegex = new RegExp(`\\b${zone.toLowerCase()}\\b`, 'i');
-                    
-                    if (zoneRegex.test(fullText)) {
-                        hasPlotted = true;
-                        let [lat, lng] = HOTZONES[zone];
-                        const locKey = `${lat}-${lng}`;
-                        
-                        if (plottedLocations.has(locKey)) {
-                            lat += (Math.random() - 0.5) * 0.05;
-                            lng += (Math.random() - 0.5) * 0.05;
-                        }
-                        plottedLocations.add(locKey);
-
-                        const marker = L.marker([lat, lng], { icon: pulseIcon }).addTo(markersLayerRef.current);
-                        
-                        const popupContent = document.createElement('div');
-                        popupContent.className = `p-2 ${isDark ? 'text-white' : 'text-gray-800'}`;
-                        popupContent.innerHTML = `
-                            <div class="text-xs font-bold uppercase tracking-wider mb-1 opacity-70 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} pb-1">${zone} Event</div>
-                            <h4 class="font-bold text-sm leading-snug mb-2 mt-2">${item.title}</h4>
-                            <button class="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors" onclick="window.triggerMapLightbox('${item.id}')">View Details</button>
-                        `;
-                        
-                        marker.bindPopup(popupContent, { 
-                            className: isDark ? 'dark-leaflet-popup' : '',
-                            maxWidth: 250
-                        });
-
-                        if (idx === 0) {
-                            latestPlottedZone = zone;
-                            latestPlottedCoords = [lat, lng];
-                            latestPlottedMarker = marker;
-                        }
-                    }
-                }
-            });
-
-            if (items.length > 0 && items[0].id !== prevFirstItemId.current) {
-                prevFirstItemId.current = items[0].id;
-                
-                if (latestPlottedZone && latestPlottedCoords) {
-                    setFlashAlert({ zone: latestPlottedZone, title: items[0].title });
-                    
-                    mapInstance.current.flyTo(latestPlottedCoords, 6, {
-                        animate: true,
-                        duration: 1.5
-                    });
-                    
-                    setTimeout(() => {
-                        if (latestPlottedMarker) latestPlottedMarker.openPopup();
-                    }, 1500);
-
-                    setTimeout(() => {
-                        setFlashAlert(null);
-                    }, 6000);
-                }
-            }
-
-            if (!document.getElementById('leaflet-pulse-css')) {
-                const style = document.createElement('style');
-                style.id = 'leaflet-pulse-css';
-                style.innerHTML = `
-                    @keyframes pulse {
-                        0% { transform: scale(0.9); opacity: 1; }
-                        100% { transform: scale(2.5); opacity: 0; }
-                    }
-                    .dark-leaflet-popup .leaflet-popup-content-wrapper { background-color: #1e293b; color: white; border: 1px solid #374151; }
-                    .dark-leaflet-popup .leaflet-popup-tip { background-color: #1e293b; border: 1px solid #374151; }
-                `;
-                document.head.appendChild(style);
-            }
-
-        }, [items, theme, accentColor]);
-
-        return (
-            <div className="w-full h-full relative rounded-inherit overflow-hidden">
-                <div ref={mapRef} className="w-full h-full z-0" />
-                
-                {flashAlert && (
-                    <div className="absolute inset-0 z-[1000] pointer-events-none flex flex-col items-center justify-start pt-12 transition-all">
-                        <div className="absolute inset-0 bg-red-600/10 animate-pulse"></div>
-                        <div className="bg-red-600/90 backdrop-blur-sm text-white px-6 py-4 rounded-xl shadow-2xl flex flex-col items-center border border-red-400 animate-bounce relative z-10 mx-4">
-                            <div className="flex items-center gap-2 font-black tracking-widest uppercase text-2xl mb-1 drop-shadow-md">
-                                <i className="fa-solid fa-satellite-dish animate-pulse"></i>
-                                BREAKING: {flashAlert.zone}
-                            </div>
-                            <div className="text-sm font-medium text-center max-w-lg line-clamp-2 drop-shadow-sm">
-                                {flashAlert.title}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
+      return <video ref={videoRef} src={src} poster={poster} referrerPolicy="no-referrer" autoPlay loop muted playsInline className={className} style={style} />;
     };
 
     // =====================================================================
     // Helper: Embed Slideshow Player (Handles Autoplay Policies)
     // =====================================================================
-    const EmbedSlideshowPlayer = ({ currentItem, config, onEnded }) => {
+    const EmbedSlideshowPlayer = ({ currentItem, config, cleanTextFn, truncateTextFn, onEnded }) => {
         const videoRef = useRef(null);
         const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
@@ -289,6 +135,9 @@
                     <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />
                 )}
                 
+                {/* Cinematic Vignette Overlay to soften video edges */}
+                <div className="absolute inset-0 z-10 pointer-events-none" style={{ boxShadow: 'inset 0 0 200px 50px rgba(0,0,0,0.9)' }}></div>
+
                 <div className="absolute inset-0 flex items-center justify-center p-8 sm:p-16 z-[5]">
                     <video 
                       ref={videoRef}
@@ -323,11 +172,11 @@
                         {config.sourceOverride || currentItem.source || 'BREAKING NEWS'}
                     </div>
                     <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
-                        {truncateText(cleanText(currentItem.title, config.removeText), config.broadcastDescLimit)}
+                        {truncateTextFn(cleanTextFn(currentItem.title), config.broadcastDescLimit)}
                     </h2>
                     {currentItem.description && (
                         <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
-                            {truncateText(cleanText(currentItem.description, config.removeText), config.broadcastDescLimit)}
+                            {truncateTextFn(cleanTextFn(currentItem.description), config.broadcastDescLimit)}
                         </p>
                     )}
                 </div>
@@ -338,7 +187,6 @@
     const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
     const hostUrl = isLocalFile ? 'https://rss-chi-five.vercel.app' : ''; 
     const myBackendUrl = `${hostUrl}/api/fetch`; 
-    const myTtsUrl = `${hostUrl}/api/tts`;
 
     function App() {
       const [isEmbedMode, setIsEmbedMode] = useState(false);
@@ -348,7 +196,6 @@
       const [topicQuery, setTopicQuery] = useState('');
       
       const [isGenerating, setIsGenerating] = useState(false);
-      const [isPreviewing, setIsPreviewing] = useState(false);
       const [feedItems, setFeedItems] = useState([]);
       const [errorMsg, setErrorMsg] = useState('');
       const [infoMsg, setInfoMsg] = useState('');
@@ -359,25 +206,15 @@
 
       const [exportWidth, setExportWidth] = useState('100%');
       const [exportHeight, setExportHeight] = useState('500px');
-
-      const [isGlobalMuted, setIsGlobalMuted] = useState(false);
-      const isGlobalMutedRef = useRef(false);
-      
-      const audioQueueRef = useRef([]); 
-      const isSpeakingRef = useRef(false); 
-      const currentAudioRef = useRef(null);
-      const recentlyReadRef = useRef(new Set()); 
-      
-      const currentlyPlayingTypeRef = useRef(null); 
-      const lastSpokenTimeRef = useRef(Date.now()); 
       
       const processedItemsRef = useRef([]);
 
       // Selected Videos State for Slideshow Mode
       const [selectedVideos, setSelectedVideos] = useState([]);
-      const [videoDurations, setVideoDurations] = useState({}); // Tracking est time
+      const [videoDurations, setVideoDurations] = useState({});
       const [embedSlideshowIndex, setEmbedSlideshowIndex] = useState(0);
       const [slideshowPreviewIndex, setSlideshowPreviewIndex] = useState(0);
+      const [isHoveringPreview, setIsHoveringPreview] = useState(false);
 
       const [config, setConfig] = useState({
         layout: 'list', 
@@ -397,10 +234,6 @@
         fallbackImage: '', 
         refreshRate: 60, 
         carouselMode: false, 
-        autoRead: false,
-        enableIcymi: false, 
-        icymiTime: 3,       
-        openAIVoice: 'alloy', 
         seamless: false, 
         broadcastScale: 100, 
         broadcastTextScale: 100, 
@@ -410,6 +243,7 @@
         filterDate: new Date().toISOString().split('T')[0], // Default to today
         filterKeyword: '', 
         sourceOverride: '',
+        sortOrder: 'desc',
       });
 
       const configRef = useRef(config);
@@ -418,220 +252,9 @@
       }, [config]);
 
       useEffect(() => {
-          window.triggerMapLightbox = (itemId) => {
-              const item = feedItems.find(i => i.id === itemId);
-              if (item) {
-                  const resolvedImage = item.image || configRef.current.fallbackImage;
-                  if (item.video) setLightbox({type: 'video', url: item.video});
-                  else if (item.isVideo) setLightbox({type: 'iframe', url: item.embedUrl});
-                  else if (resolvedImage) setLightbox({type: 'image', url: resolvedImage});
-                  else setLightbox({type: 'text', data: item}); 
-              }
-          };
-      }, [feedItems]);
-
-      useEffect(() => {
         if (config.layout === 'ticker') setExportHeight('60px');
         else if (exportHeight === '60px') setExportHeight('500px');
       }, [config.layout]);
-
-      const toggleMute = useCallback((e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        isGlobalMutedRef.current = !isGlobalMutedRef.current;
-        setIsGlobalMuted(isGlobalMutedRef.current);
-        
-        if (isGlobalMutedRef.current) {
-          audioQueueRef.current = []; 
-          isSpeakingRef.current = false;
-          currentlyPlayingTypeRef.current = null;
-          
-          if (currentAudioRef.current) {
-            currentAudioRef.current.onended = null;
-            currentAudioRef.current.pause();
-            currentAudioRef.current = null;
-          }
-          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-          lastSpokenTimeRef.current = Date.now();
-        }
-      }, []);
-
-      const processAudioQueue = useCallback(async () => {
-        if (isGlobalMutedRef.current || isSpeakingRef.current || audioQueueRef.current.length === 0) {
-            if (audioQueueRef.current.length === 0 && !isSpeakingRef.current) {
-                lastSpokenTimeRef.current = Date.now(); 
-            }
-            return;
-        }
-
-        isSpeakingRef.current = true; 
-        lastSpokenTimeRef.current = Date.now(); 
-        const { text, forceApi, isIcymi } = audioQueueRef.current.shift(); 
-        currentlyPlayingTypeRef.current = isIcymi ? 'icymi' : 'live';
-        
-        const voice = configRef.current.openAIVoice || 'alloy';
-
-        if (configRef.current.autoRead || forceApi) {
-          try {
-            const response = await fetch(myTtsUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text, voice })
-            });
-
-            if (!response.ok) throw new Error(`TTS API Error ${response.status}`);
-            
-            const blob = await response.blob();
-            const audioUrl = URL.createObjectURL(blob);
-            const audio = new Audio(audioUrl);
-            currentAudioRef.current = audio;
-            
-            audio.onended = () => {
-              isSpeakingRef.current = false;
-              currentAudioRef.current = null;
-              currentlyPlayingTypeRef.current = null;
-              lastSpokenTimeRef.current = Date.now();
-              processAudioQueue(); 
-            };
-            audio.onerror = () => {
-              isSpeakingRef.current = false;
-              currentAudioRef.current = null;
-              currentlyPlayingTypeRef.current = null;
-              lastSpokenTimeRef.current = Date.now();
-              processAudioQueue(); 
-            };
-
-            await audio.play().catch(e => {
-              console.warn("Autoplay blocked. User interaction required.", e);
-              isSpeakingRef.current = false;
-              currentAudioRef.current = null;
-              currentlyPlayingTypeRef.current = null;
-              processAudioQueue(); 
-            });
-            return;
-          } catch (error) {
-            console.error('Secure TTS Error. Falling back to local voice:', error);
-          }
-        }
-
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 1.0;
-          const voices = window.speechSynthesis.getVoices();
-          const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Samantha') || v.lang === 'en-US' || v.lang === 'en-GB');
-          if (preferredVoice) utterance.voice = preferredVoice;
-          
-          utterance.onend = () => {
-             isSpeakingRef.current = false;
-             currentlyPlayingTypeRef.current = null;
-             lastSpokenTimeRef.current = Date.now();
-             processAudioQueue();
-          };
-          utterance.onerror = () => {
-             isSpeakingRef.current = false;
-             currentlyPlayingTypeRef.current = null;
-             lastSpokenTimeRef.current = Date.now();
-             processAudioQueue();
-          };
-          
-          window.speechSynthesis.speak(utterance);
-        } else {
-          isSpeakingRef.current = false;
-          currentlyPlayingTypeRef.current = null;
-          processAudioQueue();
-        }
-      }, [myTtsUrl]);
-
-      const speakText = useCallback((text, options = {}) => {
-        const { forceApi = false, isLiveUpdate = false, isIcymi = false } = options;
-        
-        if (!text || (isGlobalMutedRef.current && !forceApi)) return;
-        
-        if (!forceApi && !isIcymi) {
-           if (recentlyReadRef.current.has(text)) return; 
-           recentlyReadRef.current.add(text);
-           if (recentlyReadRef.current.size > 50) {
-               const iterator = recentlyReadRef.current.values();
-               recentlyReadRef.current.delete(iterator.next().value);
-           }
-        }
-
-        if (isLiveUpdate || forceApi) {
-            audioQueueRef.current = audioQueueRef.current.filter(item => !item.isIcymi);
-            if (currentlyPlayingTypeRef.current === 'icymi' || forceApi) {
-                if (currentAudioRef.current) {
-                    currentAudioRef.current.onended = null; 
-                    currentAudioRef.current.pause();
-                    currentAudioRef.current = null;
-                }
-                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-                isSpeakingRef.current = false;
-                currentlyPlayingTypeRef.current = null;
-            }
-        }
-
-        audioQueueRef.current.push({ text, forceApi, isIcymi });
-        processAudioQueue();
-      }, [processAudioQueue]);
-
-      const handlePreviewVoice = async (e) => {
-        e.preventDefault();
-        if (isPreviewing) return;
-        setIsPreviewing(true);
-        audioQueueRef.current = [];
-        
-        let textToRead = "This is a preview of the selected voice.";
-        if (feedItems.length > 0) {
-          let title = feedItems[0].title;
-          let description = feedItems[0].description || '';
-          
-          textToRead = "Latest Update: " + cleanText(title, config.removeText);
-          const cleanedDesc = cleanText(description, config.removeText);
-          if (cleanedDesc && cleanedDesc.length > 10) textToRead += ". " + cleanedDesc;
-        }
-        
-        speakText(textToRead, { forceApi: true });
-        setTimeout(() => setIsPreviewing(false), 2000); 
-      };
-
-      useEffect(() => {
-        if (!config.autoRead || !config.enableIcymi) return;
-
-        const interval = setInterval(() => {
-           if (isSpeakingRef.current || isGlobalMutedRef.current || audioQueueRef.current.length > 0) {
-               lastSpokenTimeRef.current = Date.now();
-               return;
-           }
-
-           const timeSinceLastSpoken = Date.now() - lastSpokenTimeRef.current;
-           const thresholdMs = config.icymiTime * 60 * 1000;
-
-           if (timeSinceLastSpoken >= thresholdMs) {
-               const pItems = processedItemsRef.current;
-               if (pItems.length === 0) return;
-               
-               const recentItems = pItems.slice(0, Math.min(15, pItems.length)); 
-               const randomItem = recentItems[Math.floor(Math.random() * recentItems.length)];
-               
-               if (randomItem) {
-                   let textToRead = cleanText(randomItem.title, config.removeText);
-                   let description = cleanText(randomItem.description || '', config.removeText);
-                   
-                   if (description && description.length > 10) textToRead += ". " + description;
-                   
-                   const icymiPrefixes = ["In case you missed it: ", "Recapping today's top stories: ", "Earlier today: ", "A quick recap: ", "Catching you up: "];
-                   const randomPrefix = icymiPrefixes[Math.floor(Math.random() * icymiPrefixes.length)];
-                   
-                   speakText(randomPrefix + textToRead, { isIcymi: true });
-                   lastSpokenTimeRef.current = Date.now(); 
-               }
-           }
-        }, 10000); 
-
-        return () => clearInterval(interval);
-      }, [config.autoRead, config.enableIcymi, config.icymiTime, config.removeText, speakText]);
 
       const fetchFeedData = useCallback(async (targetUrlsStr, isSilent = false) => {
         if (!isSilent) {
@@ -981,47 +604,6 @@
                    setCarouselIndex(0); 
                } else if (newItems.length > 0) {
                    setCarouselIndex(0); 
-                   
-                   if (isSilent && configRef.current.autoRead) {
-                       const currentRemoveText = configRef.current.removeText;
-                       const currentExclude = configRef.current.excludeKeywords;
-                       const currentWhitelist = configRef.current.whitelistSources;
-                       const currentDate = configRef.current.filterDate;
-                       const currentKeyword = configRef.current.filterKeyword;
-                       
-                       const badWords = currentExclude ? currentExclude.toLowerCase().split(',').map(w => w.trim()).filter(Boolean) : [];
-                       const goodSources = currentWhitelist ? currentWhitelist.toLowerCase().split(',').map(w => w.trim()).filter(Boolean) : [];
-                       const kwRequired = currentKeyword ? currentKeyword.toLowerCase() : '';
-
-                       [...newItems].reverse().forEach(item => {
-                           // Offset fix for Date matching
-                           if (currentDate) {
-                               if (!item.time) return;
-                               const d = new Date(item.time);
-                               if (!isNaN(d.getTime())) {
-                                   const localDateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                                   if (localDateStr !== currentDate) return;
-                               }
-                           }
-                           
-                           const textContent = (item.title + " " + item.description).toLowerCase();
-                           const itemSource = (item.source || '').toLowerCase();
-
-                           if (kwRequired && !textContent.includes(kwRequired)) return;
-                           if (badWords.length > 0 && badWords.some(badWord => textContent.includes(badWord))) return;
-                           if (goodSources.length > 0 && !goodSources.some(goodSource => itemSource.includes(goodSource))) return;
-
-                           let textToRead = cleanText(item.title, currentRemoveText);
-                           let description = cleanText(item.description || '', currentRemoveText);
-                           
-                           let combinedRead = "Latest Update: " + textToRead;
-                           if (description && description.length > 10) {
-                               combinedRead += ". " + description;
-                           }
-                           
-                           speakText(combinedRead, { isLiveUpdate: true });
-                       });
-                   }
                }
 
                return uniqueItems;
@@ -1042,7 +624,7 @@
         } finally {
           if (!isSilent) setIsGenerating(false);
         }
-      }, [myBackendUrl, speakText]);
+      }, [myBackendUrl]);
 
       useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -1067,22 +649,19 @@
             fallbackImage: params.get('fallbackImg') ? decodeURIComponent(params.get('fallbackImg')) : '',
             refreshRate: parseInt(params.get('refresh')) || 60,
             carouselMode: params.get('carousel') === 'true',
-            autoRead: params.get('autoRead') === 'true',
-            enableIcymi: params.get('icymi') === 'true',
-            icymiTime: parseInt(params.get('icymiTime')) || 3,
-            openAIVoice: params.get('openaiVoice') || 'alloy',
             seamless: params.get('seamless') === 'true',
             broadcastScale: parseInt(params.get('bScale')) || 100,
             broadcastTextScale: parseInt(params.get('bTScale')) || 100,
             broadcastDescLimit: parseInt(params.get('bDescLmt')) || 150,
             broadcastBgImage: params.get('bBgImg') ? decodeURIComponent(params.get('bBgImg')) : '',
             broadcastBgOpacity: params.get('bBgOp') ? parseInt(params.get('bBgOp')) : 50,
-            filterDate: params.get('fDate') !== null ? params.get('fDate') : new Date().toISOString().split('T')[0],
-            filterKeyword: params.get('fKey') ? decodeURIComponent(params.get('fKey')) : '',
-            sourceOverride: params.get('srcOver') ? decodeURIComponent(params.get('srcOver')) : '',
-          });
+        filterDate: params.get('fDate') !== null ? params.get('fDate') : new Date().toISOString().split('T')[0],
+        filterKeyword: params.get('fKey') ? decodeURIComponent(params.get('fKey')) : '',
+        sourceOverride: params.get('srcOver') ? decodeURIComponent(params.get('srcOver')) : '',
+        sortOrder: params.get('sort') || 'desc',
+      });
 
-          const targetUrl = params.get('url');
+      const targetUrl = params.get('url');
           if (targetUrl && targetUrl !== 'demo') {
             setUrl(decodeURIComponent(targetUrl)); 
             fetchFeedData(decodeURIComponent(targetUrl));
@@ -1121,7 +700,7 @@
 
         const embedCode = `
 <iframe 
-  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}&srcOver=${encodeURIComponent(config.sourceOverride)}" 
+  src="${baseUrl}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}&srcOver=${encodeURIComponent(config.sourceOverride)}&sort=${config.sortOrder}" 
   width="${exportWidth}" 
   height="${exportHeight}" 
   frameborder="0" 
@@ -1163,7 +742,7 @@
       };
 
       // Apply All Filters safely
-      let processedItems = feedItems;
+      let processedItems = [...feedItems];
       
       if (config.filterDate) {
           processedItems = processedItems.filter(item => {
@@ -1206,10 +785,16 @@
          }
       }
       
+      processedItems.sort((a, b) => {
+          const timeA = a.time ? new Date(a.time).getTime() : 0;
+          const timeB = b.time ? new Date(b.time).getTime() : 0;
+          return config.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+      });
+      
       processedItemsRef.current = processedItems;
 
       // Only slice for standard layouts. Slideshow gets EVERYTHING.
-      const displayItems = config.layout === 'slideshow' ? processedItems : processedItems.slice(0, config.maxItems);
+      const displayItems = config.layout === 'slide' ? processedItems : processedItems.slice(0, config.maxItems);
       
       const safeItemCount = Math.max(1, displayItems.length);
       const activeCarouselIndex = carouselIndex % safeItemCount;
@@ -1337,7 +922,7 @@
                 ${config.tickerSpeed === 0 ? 'animation-play-state: paused !important;' : ''}
               }
               .pause-on-hover:hover .animate-marquee { animation-play-state: paused; }
-              ${(config.seamless || config.carouselMode || config.layout === 'map' || config.layout === 'slideshow') ? `
+              ${(config.seamless || config.carouselMode || config.layout === 'slide') ? `
               .embed-scroll::-webkit-scrollbar { display: none; width: 0px; }
               .embed-scroll { -ms-overflow-style: none; scrollbar-width: none; }
               ` : `
@@ -1346,30 +931,11 @@
               .embed-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
               `}
             `}</style>
-
-            {/* Mute Button Toggle in Embed */}
-            {config.autoRead && (
-              <button
-                onClick={toggleMute}
-                className={`absolute bottom-4 right-4 z-[9999] flex items-center justify-center w-10 h-10 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-105 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${isGlobalMuted ? 'bg-red-500/90 text-white' : 'bg-slate-800/80 text-white dark:bg-white/80 dark:text-slate-900'}`}
-                title={isGlobalMuted ? "Unmute Voice" : "Mute Voice"}
-              >
-                <i className={`fa-solid ${isGlobalMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
-              </button>
-            )}
-
-            {config.layout === 'map' && (
-                <div className={`w-full h-full relative ${config.seamless ? '' : 'p-2'}`}>
-                    <div className={`w-full h-full relative overflow-hidden ${config.seamless ? '' : 'rounded-lg border shadow-sm'} ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-300'}`}>
-                       <FeedMap items={displayItems} theme={config.theme} accentColor={config.accentColor} />
-                    </div>
-                </div>
-            )}
             
             {/* ========================================================= */}
             {/* EMBED SLIDESHOW LAYOUT (Auto-playing 16:9 Broadcast) */}
             {/* ========================================================= */}
-            {config.layout === 'slideshow' && (() => {
+            {config.layout === 'slide' && (() => {
                 const videoItems = processedItems.filter(item => item.video);
                 if (videoItems.length === 0) return <div className="w-full h-screen flex items-center justify-center bg-black text-gray-500">No videos available in this feed.</div>;
                 
@@ -1382,7 +948,7 @@
                        />;
             })()}
 
-            {config.layout !== 'map' && config.layout !== 'slideshow' && (
+            {config.layout !== 'slide' && (
             <div className={`w-full h-full ${config.layout !== 'ticker' ? `embed-scroll overflow-y-auto ${config.seamless ? 'p-0' : 'p-4'}` : 'flex items-center'}`}>
               
               {config.layout === 'list' && (
@@ -1440,10 +1006,88 @@
 
                   {config.carouselMode && displayItems.length > 1 && (
                     <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
                       <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                        {activeCarouselIndex + 1} / {displayItems.length}
+                      </span>
+                      <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                        Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* FEED LAYOUT */}
+              {config.layout === 'feed' && (
+                <div className={`relative w-full group/carousel ${config.seamless ? 'h-full flex flex-col' : ''}`}>
+                  <div className={`${config.seamless ? 'space-y-0 pb-0 flex-1 h-full' : 'space-y-6 pb-2'}`}>
+                    {displayItems.map((item, idx) => {
+                      if (config.carouselMode && idx !== activeCarouselIndex) return null;
+                      const resolvedImage = item.image || config.fallbackImage;
+                      const hasMedia = item.video || item.isVideo || resolvedImage;
+
+                      return (
+                        <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                          
+                          {config.showImages && hasMedia && (
+                            <div className={`w-full overflow-hidden bg-black/90 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
+                              
+                              {/* Cinematic Background Blur */}
+                              {resolvedImage && (
+                                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                                  <img src={resolvedImage} className="w-full h-full object-cover filter blur-2xl grayscale opacity-40 scale-125" aria-hidden="true" onError={(e) => e.target.style.display = 'none'} />
+                                </div>
+                              )}
+
+                              {item.video ? (
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                  <AutoPlayVideo src={item.video} poster={resolvedImage} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              ) : item.isVideo ? (
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                  {resolvedImage && <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
+                                  <div className={`absolute inset-0 flex items-center justify-center transition-colors ${resolvedImage ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              ) : (
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: resolvedImage}); }}>
+                                  <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className={`flex flex-col justify-center min-w-0 ${config.seamless ? 'p-4 shrink-0' : 'flex-1 px-1'}`}>
+                            <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
+                              <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
+                                {cleanText(item.title, config.removeText)}
+                              </h3>
+                              <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
+                                {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                              </div>
+                              {config.showDescription && item.description && (
+                                <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                  {cleanText(item.description, config.removeText)}
+                                </p>
+                              )}
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {config.carouselMode && displayItems.length > 1 && (
+                    <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                        <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                      </button>
+                      <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
                         {activeCarouselIndex + 1} / {displayItems.length}
                       </span>
                       <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
@@ -1467,7 +1111,7 @@
                         <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                              <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                              <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           ) : item.isVideo ? (
@@ -1559,7 +1203,7 @@
             .preview-scroll::-webkit-scrollbar { width: 6px; }
             .preview-scroll::-webkit-scrollbar-track { background: transparent; }
             .preview-scroll::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
-            ${(config.seamless || config.carouselMode || config.layout === 'map' || config.layout === 'slideshow') ? `
+            ${(config.seamless || config.carouselMode || config.layout === 'slide') ? `
             .preview-scroll::-webkit-scrollbar { display: none; width: 0px; }
             .preview-scroll { -ms-overflow-style: none; scrollbar-width: none; }
             ` : ''}
@@ -1645,13 +1289,12 @@
                   <div className="p-5 space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-border-all"></i> Layout Style</label>
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {[
                            { id: 'list', icon: 'fa-solid fa-list', label: 'List' }, 
                            { id: 'grid', icon: 'fa-solid fa-border-all', label: 'Grid' }, 
                            { id: 'feed', icon: 'fa-solid fa-image', label: 'Feed' }, 
                            { id: 'ticker', icon: 'fa-solid fa-ellipsis', label: 'Ticker' },
-                           { id: 'map', icon: 'fa-solid fa-earth-americas', label: 'Live Map' },
                            { id: 'slideshow', icon: 'fa-solid fa-play-circle', label: 'Slide' } 
                         ].map((type) => (
                           <button key={type.id} onClick={() => setConfig({ ...config, layout: type.id })} className={`flex flex-col items-center justify-center gap-1 py-3 px-1 border rounded-lg transition-all ${config.layout === type.id ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
@@ -1665,6 +1308,14 @@
                     <div className="space-y-4 pt-4 border-t border-gray-100">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Content Filters</h3>
                         
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-sort"></i> Sort Order</label>
+                          <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <button onClick={(e) => { e.preventDefault(); setConfig({ ...config, sortOrder: 'desc' }); }} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.sortOrder === 'desc' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Newest First</button>
+                            <button onClick={(e) => { e.preventDefault(); setConfig({ ...config, sortOrder: 'asc' }); }} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${config.sortOrder === 'asc' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Oldest First</button>
+                          </div>
+                        </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                             <i className="fa-regular fa-calendar"></i> Filter by Date
@@ -1758,7 +1409,7 @@
                           </div>
                         </div>
 
-                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
+                        {config.layout !== 'slideshow' && (
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1"><i className="fa-solid fa-font"></i> Font Family</label>
                               <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -1777,7 +1428,7 @@
                           </div>
                         </div>
 
-                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
+                        {config.layout !== 'slideshow' && (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
@@ -1801,7 +1452,7 @@
                         </div>
                         )}
                         
-                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
+                        {config.layout !== 'slideshow' && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                               <i className="fa-regular fa-image"></i> Fallback Image URL
@@ -1852,18 +1503,6 @@
                           </label>
                         )}
                       </div>
-                    )}
-
-                    {config.layout === 'map' && (
-                        <div className="space-y-3 pt-2 border-t border-gray-100">
-                            <label className="flex items-center justify-between cursor-pointer pb-2">
-                              <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-expand"></i> Seamless (Edge-to-Edge)</span>
-                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.seamless ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                                <input type="checkbox" className="sr-only" checked={config.seamless} onChange={(e) => setConfig({ ...config, seamless: e.target.checked })} />
-                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.seamless ? 'translate-x-4' : 'translate-x-1'}`} />
-                              </div>
-                            </label>
-                        </div>
                     )}
 
                     {/* NEW: SLIDESHOW SPECIFIC CONTROLS */}
@@ -1945,70 +1584,6 @@
                         </div>
                         <input type="range" min="30" max="300" step="30" value={config.refreshRate} onChange={(e) => setConfig({ ...config, refreshRate: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                       </div>
-
-                      {/* Auto-Read Toggle */}
-                      <label className="flex items-center justify-between cursor-pointer pt-2">
-                        <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-microphone"></i> Auto-Read Updates (Voice)</span>
-                        <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.autoRead ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                          <input type="checkbox" className="sr-only" checked={config.autoRead} onChange={(e) => setConfig({ ...config, autoRead: e.target.checked })} />
-                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.autoRead ? 'translate-x-4' : 'translate-x-1'}`} />
-                        </div>
-                      </label>
-                      
-                      {/* OpenAI Settings Block */}
-                      {config.autoRead && (
-                        <div className="pt-4 border-t border-gray-100 space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                              <i className="fa-solid fa-user-astronaut"></i> OpenAI Voice
-                            </label>
-                            <div className="flex gap-2">
-                              <select 
-                                value={config.openAIVoice} 
-                                onChange={(e) => setConfig({ ...config, openAIVoice: e.target.value })}
-                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition-all"
-                              >
-                                <option value="alloy">Alloy (Neutral)</option>
-                                <option value="echo">Echo (Male)</option>
-                                <option value="fable">Fable (British Male)</option>
-                                <option value="nova">Nova (Female)</option>
-                                <option value="onyx">Onyx (Deep Male)</option>
-                                <option value="shimmer">Shimmer (Soft Female)</option>
-                              </select>
-                              <button 
-                                onClick={handlePreviewVoice}
-                                disabled={isPreviewing}
-                                className="flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
-                                title="Preview Voice"
-                              >
-                                {isPreviewing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-volume-high"></i>}
-                              </button>
-                            </div>
-                            <p className="text-[11px] text-green-600 mt-2"><i className="fa-solid fa-shield-halved"></i> Audio generated securely via your Vercel backend.</p>
-                          </div>
-                          
-                          {/* ICYMI Settings Block */}
-                          <div className="pt-2 border-t border-gray-100">
-                            <label className="flex items-center justify-between cursor-pointer">
-                              <span className="text-sm font-medium text-gray-700 flex items-center gap-2"><i className="fa-solid fa-rotate-left"></i> ICYMI Auto-Loop (Fills dead air)</span>
-                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${config.enableIcymi ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                                <input type="checkbox" className="sr-only" checked={config.enableIcymi} onChange={(e) => setConfig({ ...config, enableIcymi: e.target.checked })} />
-                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${config.enableIcymi ? 'translate-x-4' : 'translate-x-1'}`} />
-                              </div>
-                            </label>
-                            
-                            {config.enableIcymi && (
-                                <div className="mt-4">
-                                  <div className="flex justify-between items-center mb-2">
-                                    <label className="text-xs font-medium text-gray-600">Minutes of silence before recap</label>
-                                    <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{config.icymiTime} min</span>
-                                  </div>
-                                  <input type="range" min="1" max="15" step="1" value={config.icymiTime} onChange={(e) => setConfig({ ...config, icymiTime: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
 
                   </div>
@@ -2023,7 +1598,7 @@
                   </div>
                   <div className="p-5">
                     
-                    {/* WIDGET SIZING CONTROLS */}
+                    {/* WIDGET Sizing */}
                     <div className="flex gap-3 mb-4">
                       <div className="flex-1">
                         <label className="block text-xs font-medium text-gray-600 mb-1">Widget Width</label>
@@ -2035,11 +1610,11 @@
                       </div>
                     </div>
 
-                    <p className="text-sm text-gray-600 mb-3">Copy this code and paste it into Framer to embed the widget.</p>
+                    <p className="text-sm text-gray-600 mb-3">Copy this code and paste it into your site to embed the widget.</p>
                     
                     <div className="relative">
                       <pre className="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs overflow-x-auto border border-gray-700 select-all">
-                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&autoRead=${config.autoRead}&icymi=${config.enableIcymi}&icymiTime=${config.icymiTime}&openaiVoice=${encodeURIComponent(config.openAIVoice)}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}&srcOver=${encodeURIComponent(config.sourceOverride)}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
+                        {`<iframe src="${window.location.href.split('?')[0]}?embed=true&url=${encodeURIComponent(url || 'demo')}&layout=${config.layout}&theme=${config.theme}&font=${encodeURIComponent(config.fontFamily)}&bg=${encodeURIComponent(config.bgColor)}&cardBg=${encodeURIComponent(config.cardBgColor)}&color=${encodeURIComponent(config.accentColor).replace(/%/g, '%25')}&imgs=${config.showImages}&desc=${config.showDescription}&limit=${config.maxItems}&speed=${config.tickerSpeed}&chars=${config.tickerCharLimit}&remove=${encodeURIComponent(config.removeText)}&exclude=${encodeURIComponent(config.excludeKeywords)}&whitelist=${encodeURIComponent(config.whitelistSources)}&fallbackImg=${encodeURIComponent(config.fallbackImage)}&refresh=${config.refreshRate}&carousel=${config.carouselMode}&seamless=${config.seamless}&bScale=${config.broadcastScale}&bTScale=${config.broadcastTextScale}&bDescLmt=${config.broadcastDescLimit}&bBgImg=${encodeURIComponent(config.broadcastBgImage)}&bBgOp=${config.broadcastBgOpacity}&fDate=${config.filterDate}&fKey=${encodeURIComponent(config.filterKeyword)}&srcOver=${encodeURIComponent(config.sourceOverride)}" width="${exportWidth}" height="${exportHeight}" frameborder="0" allow="autoplay" style="${config.seamless ? 'border: none; background-color: transparent;' : `border-radius: 8px; border: 1px solid ${config.theme === 'dark' ? '#374151' : '#e5e7eb'}; background-color: ${config.bgColor};`}"></iframe>`}
                       </pre>
                       <button onClick={handleCopyCode} className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-md transition-colors flex items-center gap-1 text-xs">
                         {copied ? <i className="fa-solid fa-circle-check text-green-400"></i> : <i className="fa-regular fa-copy"></i>}
@@ -2076,25 +1651,6 @@
 
                       <div className={`relative w-full h-[700px] overflow-hidden transition-colors duration-300 group ${config.theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`} style={{ backgroundColor: config.seamless ? 'transparent' : config.bgColor, borderColor: config.theme === 'dark' ? '#1e293b' : '#f1f5f9', fontFamily: getWidgetFontFamily() }}>
                         
-                        {/* Preview App Mute Overlay */}
-                        {config.autoRead && (
-                          <button
-                            onClick={toggleMute}
-                            className={`absolute bottom-4 right-4 z-[50] flex items-center justify-center w-10 h-10 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 hover:scale-105 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${isGlobalMuted ? 'bg-red-500/90 text-white' : 'bg-slate-800/80 text-white dark:bg-white/80 dark:text-slate-900'}`}
-                            title={isGlobalMuted ? "Unmute Voice" : "Mute Voice"}
-                          >
-                            <i className={`fa-solid ${isGlobalMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
-                          </button>
-                        )}
-
-                        {config.layout === 'map' && (
-                            <div className={`w-full h-full relative ${config.seamless ? '' : 'p-2'}`}>
-                                <div className={`w-full h-full relative overflow-hidden ${config.seamless ? '' : 'rounded-lg border shadow-sm'} ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-300'}`}>
-                                   <FeedMap items={displayItems} theme={config.theme} accentColor={config.accentColor} />
-                                </div>
-                            </div>
-                        )}
-                        
                         {/* ========================================================= */}
                         {/* SLIDESHOW LAYOUT WITH EMBEDDED PREVIEW */}
                         {/* ========================================================= */}
@@ -2115,15 +1671,18 @@
                             return (
                                 <div className={`w-full h-full flex flex-col relative ${config.seamless ? 'p-0' : 'p-4'}`}>
                                     
-                                    {/* PREVIEW WINDOW */}
+                                    {/* PREVIEW WINDOW (HOVER ONLY) */}
                                     <div className="w-full max-w-2xl mx-auto aspect-video bg-gray-900 relative mb-4 rounded-xl overflow-hidden shadow-lg border border-gray-700 shrink-0 flex items-center justify-center p-4">
                                         {config.broadcastBgImage && <img src={config.broadcastBgImage} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" style={{ opacity: config.broadcastBgOpacity / 100 }} />}
                                         
                                         {/* Cinematic Vignette Overlay to soften video edges */}
                                         <div className="absolute inset-0 z-10 pointer-events-none" style={{ boxShadow: 'inset 0 0 150px 50px rgba(0,0,0,0.8)' }}></div>
 
-                                        {/* PREVIEW WINDOW (NO AUTOPLAY) */}
-                                        <video key={currentPreview.id} src={currentPreview.video} poster={currentPreview.image} preload="metadata" muted playsInline className="max-w-full max-h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} />
+                                        {isHoveringPreview ? (
+                                            <video key={`vid-${currentPreview.id}`} src={currentPreview.video} autoPlay loop muted playsInline className="max-w-full max-h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} />
+                                        ) : (
+                                            <img key={`img-${currentPreview.id}`} src={currentPreview.image || config.fallbackImage} className="max-w-full max-h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} onError={(e) => e.target.style.display = 'none'} />
+                                        )}
                                         
                                         <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-3 sm:p-5 rounded-r-xl text-white shadow-2xl pointer-events-none z-20"
                                              style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
@@ -2150,14 +1709,17 @@
                                     </div>
 
                                     {/* GRID */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pb-24 embed-scroll flex-1 content-start p-1">
+                                    <div 
+                                      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto pb-24 embed-scroll flex-1 content-start p-1"
+                                      onMouseLeave={() => setIsHoveringPreview(false)}
+                                    >
                                         {videoItems.map((item, idx) => {
                                             const isSelected = selectedVideos.includes(item.id);
                                             const selectedIndex = selectedVideos.indexOf(item.id);
                                             return (
                                                 <div key={item.id} 
                                                      onClick={(e) => { e.preventDefault(); toggleVideoSelection(item.id); }}
-                                                     onMouseEnter={() => setSlideshowPreviewIndex(idx)}
+                                                     onMouseEnter={() => { setSlideshowPreviewIndex(idx); setIsHoveringPreview(true); }}
                                                      className={`relative flex flex-col cursor-pointer rounded-xl overflow-hidden border-2 transition-all min-h-[120px] ${isSelected ? 'border-blue-500 scale-[0.98] shadow-md' : 'border-transparent hover:border-gray-400 bg-gray-100 dark:bg-slate-800'}`}>
                                                     
                                                     <div className="absolute top-2 left-2 z-20 transition-colors">
@@ -2177,7 +1739,6 @@
                                                     </div>
                                                     
                                                     <div className="w-full aspect-video bg-black relative pointer-events-none shrink-0">
-                                                        {/* STATIC VIDEO PREVIEW WITH METADATA CAPTURE */}
                                                         <video 
                                                             src={item.video} 
                                                             poster={item.image} 
@@ -2221,7 +1782,7 @@
                             );
                         })()}
 
-                        {config.layout !== 'map' && config.layout !== 'slideshow' && (
+                        {config.layout !== 'slideshow' && (
                         <div className={`w-full h-full ${config.layout !== 'ticker' ? `preview-scroll overflow-y-auto ${config.seamless ? 'p-0' : 'p-4 sm:p-6'}` : 'flex items-center border-y'}`}>
                           
                           {config.layout === 'list' && (
@@ -2239,7 +1800,7 @@
                                         <div className="shrink-0 w-full sm:w-32 h-40 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-slate-700 relative">
                                           {item.video ? (
                                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                              <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                              <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-2xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
@@ -2317,7 +1878,7 @@
 
                                           {item.video ? (
                                             <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                              <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
+                                              <AutoPlayVideo src={item.video} poster={resolvedImage} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                             </div>
                                           ) : item.isVideo ? (
@@ -2384,7 +1945,7 @@
                                     <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                       {item.video ? (
                                         <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                          <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                          <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                           <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                         </div>
                                       ) : item.isVideo ? (
