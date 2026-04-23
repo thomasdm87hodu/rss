@@ -29,6 +29,36 @@
     ];
 
     // =====================================================================
+    // HOTZONE DICTIONARY
+    // =====================================================================
+    const HOTZONES = {
+        "Tehran": [35.6892, 51.3890], "Isfahan": [32.6539, 51.6660], "Kharg Island": [29.2333, 50.3167],
+        "Bandar Abbas": [29.1833, 56.2667], "Kermanshah": [34.3142, 47.0650], "Shiraz": [29.5918, 52.5836],
+        "Tabriz": [38.0700, 46.2919], "Natanz": [33.5833, 51.9333], "Qom": [34.6401, 50.8764], "Bushehr": [28.9234, 50.8203],
+        "Tel Aviv": [32.0853, 34.7818], "Jerusalem": [31.7683, 35.2137], "Gaza": [31.5017, 34.4668],
+        "Haifa": [32.7940, 34.9896], "Eilat": [29.5581, 34.9482], "Ashkelon": [31.6693, 34.5715],
+        "Ashdod": [31.8014, 34.6435], "Sderot": [31.5235, 34.5956], "Rafah": [31.2804, 34.2595],
+        "West Bank": [32.0000, 35.2500], "Golan Heights": [33.0000, 35.7500], "Tiberias": [32.7940, 35.5331],
+        "Safed": [32.9646, 35.4960], "Beersheba": [31.2518, 34.7913], "Negev": [30.5000, 34.8333],
+        "Beirut": [33.8938, 35.5018], "Dahieh": [33.8443, 35.5085], "Tyre": [33.2705, 35.1963],
+        "Sidon": [33.5571, 35.3729], "Baalbek": [34.0058, 36.2181], "Nabatieh": [33.3772, 35.4838],
+        "Bekaa Valley": [33.9984, 36.1469], "Marjayoun": [33.3606, 35.5900], "Litani": [33.3323, 35.2513],
+        "Damascus": [33.5138, 36.2765], "Aleppo": [36.2012, 37.1612], "Homs": [34.7324, 36.7137],
+        "Latakia": [35.5206, 35.7772], "Tartus": [34.8890, 35.8866], "Palmyra": [34.5504, 38.2810],
+        "Deir ez-Zor": [35.3353, 40.1436], "Idlib": [35.9306, 36.6339], "Quneitra": [33.1256, 35.8236],
+        "Sanaa": [15.3694, 44.1910], "Hodeidah": [14.7978, 42.9545], "Aden": [12.8000, 45.0333],
+        "Taiz": [13.5795, 44.0205], "Red Sea": [20.0000, 38.0000], "Gulf of Aden": [12.0000, 48.0000],
+        "Bab el-Mandeb": [12.5833, 43.3333], "Baghdad": [33.3152, 44.3661], "Erbil": [36.1901, 44.0090],
+        "Basra": [30.5081, 47.7835], "Al Asad": [33.7946, 42.4369], "Mosul": [36.3400, 43.1300],
+        "Kirkuk": [35.4681, 44.3922], "Camp Taji": [33.5350, 44.2540], "Abu Dhabi": [24.4539, 54.3773],
+        "Dubai": [25.2048, 55.2708], "UAE": [23.4241, 53.8478], "United Arab Emirates": [23.4241, 53.8478],
+        "Al Dhafra": [24.2483, 54.5476], "Persian Gulf": [26.0000, 52.0000], "Amman": [31.9522, 35.9334],
+        "Aqaba": [29.5267, 35.0078], "Zarqa": [32.0728, 36.0880], "Cairo": [30.0444, 31.2357],
+        "Sinai": [29.5000, 33.8333], "Suez": [29.9668, 32.5498], "Riyadh": [24.7136, 46.6753],
+        "Jeddah": [21.4858, 39.1925]
+    };
+
+    // =====================================================================
     // GLOBAL HELPERS
     // =====================================================================
     const formatDuration = (seconds) => {
@@ -167,24 +197,20 @@
                     </div>
                 )}
                 
-                {config.showBroadcastOverlay && (
+                {config.showBroadcastOverlay && !isDescHidden && (
                     <div className="absolute bottom-12 left-12 max-w-3xl bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-6 rounded-r-2xl text-white shadow-2xl pointer-events-none z-20"
                          style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
-                        <div className={`text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2 ${!isDescHidden ? 'mb-2' : ''}`}>
+                        <div className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-widest flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
                             {config.sourceOverride || currentItem.source || 'BREAKING NEWS'}
                         </div>
-                        {!isDescHidden && (
-                            <>
-                                <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
-                                    {truncateTextFn(cleanTextFn(currentItem.title), config.broadcastDescLimit)}
-                                </h2>
-                                {currentItem.description && (
-                                    <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
-                                        {truncateTextFn(cleanTextFn(currentItem.description), config.broadcastDescLimit)}
-                                    </p>
-                                )}
-                            </>
+                        <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
+                            {truncateTextFn(cleanTextFn(currentItem.title), config.broadcastDescLimit)}
+                        </h2>
+                        {currentItem.description && (
+                            <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
+                                {truncateTextFn(cleanTextFn(currentItem.description), config.broadcastDescLimit)}
+                            </p>
                         )}
                     </div>
                 )}
@@ -193,7 +219,7 @@
     };
 
     const isLocalFile = typeof window !== 'undefined' && window.location.protocol === 'file:';
-    const hostUrl = isLocalFile ? 'https://rss-chi-five.vercel.app' : ''; 
+    const hostUrl = isLocalFile ? 'https://YOUR_VERCEL_PROJECT_URL.vercel.app' : ''; 
     const myBackendUrl = `${hostUrl}/api/fetch`; 
 
     const getInitialArrayParam = (paramName) => {
@@ -217,6 +243,7 @@
       const [errorMsg, setErrorMsg] = useState('');
       const [infoMsg, setInfoMsg] = useState('');
       const [copied, setCopied] = useState(false);
+      const [aiTextCopied, setAiTextCopied] = useState(false);
       
       const [carouselIndex, setCarouselIndex] = useState(0);
       const [lightbox, setLightbox] = useState(null);
@@ -743,6 +770,44 @@
         document.body.removeChild(textArea);
       };
 
+      const handleCopyTextForAI = (e) => {
+        e.preventDefault();
+        
+        // Determine which items to export (respects manual selections in Slideshow Mode)
+        let itemsToExport = displayItems;
+        if (config.layout === 'slideshow' && selectedVideos.length > 0) {
+            itemsToExport = displayItems.filter(item => selectedVideos.includes(item.id));
+        }
+
+        let textToCopy = "=== NEWS FEED EXPORT ===\n\n";
+
+        itemsToExport.forEach((item, index) => {
+            const title = cleanText(item.title, config.removeText);
+            const desc = cleanText(item.description, config.removeText);
+            const source = config.sourceOverride || item.source || 'Unknown Source';
+            const time = timeAgo(item.time) || item.time || 'Unknown Time';
+            
+            textToCopy += `[${index + 1}] ${title}\n`;
+            textToCopy += `Source: ${source} | Time: ${time}\n`;
+            textToCopy += `Link: ${item.link}\n`;
+            if (desc) textToCopy += `Summary: ${desc}\n`;
+            textToCopy += `----------------------------------------\n\n`;
+        });
+
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            setAiTextCopied(true);
+            setTimeout(() => setAiTextCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy text', err);
+        }
+        document.body.removeChild(textArea);
+      };
+
       const toggleVideoSelection = (id) => {
           setSelectedVideos(prev => 
               prev.includes(id) ? prev.filter(vidId => vidId !== id) : [...prev, id]
@@ -877,24 +942,20 @@
                   </div>
                   
                   {/* Lower Third Broadcast Graphic */}
-                  {config.showBroadcastOverlay && (
+                  {config.showBroadcastOverlay && !isDescHidden && (
                       <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-6 rounded-r-2xl text-white shadow-2xl pointer-events-none z-20"
                            style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
-                          <div className={`text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2 ${!isDescHidden ? 'mb-2' : ''}`}>
+                          <div className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-widest flex items-center gap-2">
                               <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
                               {config.sourceOverride || currentItem.source || 'BREAKING NEWS'}
                           </div>
-                          {!isDescHidden && (
-                              <>
-                                  <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
-                                      {truncateText(cleanText(currentItem.title, config.removeText), config.broadcastDescLimit)}
-                                  </h2>
-                                  {currentItem.description && (
-                                      <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
-                                          {truncateText(cleanText(currentItem.description, config.removeText), config.broadcastDescLimit)}
-                                      </p>
-                                  )}
-                              </>
+                          <h2 className="font-bold mb-2 leading-snug drop-shadow-lg" style={{ fontSize: `${3 * (config.broadcastTextScale / 100)}rem` }}>
+                              {truncateText(cleanText(currentItem.title, config.removeText), config.broadcastDescLimit)}
+                          </h2>
+                          {currentItem.description && (
+                              <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${1.125 * (config.broadcastTextScale / 100)}rem`, lineHeight: 1.4 }}>
+                                  {truncateText(cleanText(currentItem.description, config.removeText), config.broadcastDescLimit)}
+                              </p>
                           )}
                       </div>
                   )}
@@ -1546,7 +1607,6 @@
                         </div>
                         <input type="range" min="30" max="300" step="30" value={config.refreshRate} onChange={(e) => setConfig({ ...config, refreshRate: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                       </div>
-
                     </div>
 
                   </div>
@@ -1593,7 +1653,18 @@
                 <div className="sticky top-24">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">Live Preview <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span></h2>
-                    <div className="text-xs px-2 py-1 bg-gray-200 text-gray-600 rounded font-medium">Rendered Output</div>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={handleCopyTextForAI}
+                        disabled={displayItems.length === 0}
+                        className="text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 border border-indigo-200 disabled:opacity-50"
+                        title="Copy formatted text to clipboard for ChatGPT / Claude"
+                      >
+                        {aiTextCopied ? <i className="fa-solid fa-check"></i> : <i className="fa-solid fa-robot"></i>}
+                        {aiTextCopied ? 'Copied for AI!' : 'Copy Text for AI'}
+                      </button>
+                      <div className="text-xs px-2 py-1 bg-gray-200 text-gray-600 rounded font-medium">Rendered Output</div>
+                    </div>
                   </div>
 
                   {feedItems.length === 0 ? (
@@ -1648,19 +1719,15 @@
                                             <img key={`img-${currentPreview.id}`} src={currentPreview.image || config.fallbackImage} className="max-w-full max-h-full object-contain relative z-[5] drop-shadow-2xl" style={videoMaskStyle} onError={(e) => e.target.style.display = 'none'} />
                                         )}
                                         
-                                        {config.showBroadcastOverlay && (
+                                        {config.showBroadcastOverlay && !isPreviewDescHidden && (
                                             <div className="absolute bottom-[10%] left-[5%] max-w-[70%] bg-gradient-to-r from-black/90 to-black/40 backdrop-blur-md border-l-4 border-blue-500 p-3 sm:p-5 rounded-r-xl text-white shadow-2xl pointer-events-none z-20"
                                                  style={{ transform: `scale(${config.broadcastScale / 100})`, transformOrigin: 'bottom left' }}>
-                                                <div className={`text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-1.5 ${!isPreviewDescHidden ? 'mb-1' : ''}`}>
+                                                <div className="text-[10px] font-bold text-blue-400 mb-1 uppercase tracking-widest flex items-center gap-1.5">
                                                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                                                     {config.sourceOverride || currentPreview.source || 'BREAKING NEWS'}
                                                 </div>
-                                                {!isPreviewDescHidden && (
-                                                    <>
-                                                        <h2 className="font-bold mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.title, config.removeText), config.broadcastDescLimit)}</h2>
-                                                        {currentPreview.description && <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description, config.removeText), config.broadcastDescLimit)}</p>}
-                                                    </>
-                                                )}
+                                                <h2 className="font-bold mb-1 leading-snug drop-shadow-lg line-clamp-2" style={{ fontSize: `${1.25 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.title, config.removeText), config.broadcastDescLimit)}</h2>
+                                                {currentPreview.description && <p className="font-normal text-gray-100 opacity-90 drop-shadow" style={{ fontSize: `${0.8 * (config.broadcastTextScale / 100)}rem` }}>{truncateText(cleanText(currentPreview.description, config.removeText), config.broadcastDescLimit)}</p>}
                                             </div>
                                         )}
                                         <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm z-30 font-medium">Broadcast Preview</div>
@@ -1720,9 +1787,9 @@
                                                                 setHiddenDescriptions(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id]);
                                                             }}
                                                             className={`w-6 h-6 rounded-full flex items-center justify-center shadow-sm transition-colors ${isSelectedDescHidden ? 'bg-red-500/90 text-white hover:bg-red-600' : 'bg-white/90 text-gray-700 hover:bg-white'}`}
-                                                            title={isSelectedDescHidden ? "Description Hidden" : "Hide Description"}
+                                                            title={isSelectedDescHidden ? "Graphic Hidden" : "Hide Graphic"}
                                                         >
-                                                            <i className={`fa-solid ${isSelectedDescHidden ? 'fa-comment-slash' : 'fa-comment'} text-[10px]`}></i>
+                                                            <i className={`fa-solid ${isSelectedDescHidden ? 'fa-eye-slash' : 'fa-eye'} text-[10px]`}></i>
                                                         </button>
                                                     </div>
                                                     
@@ -1855,7 +1922,7 @@
                                     <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                                       {item.video ? (
                                         <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                                          <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                                          <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                                           <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                                         </div>
                                       ) : item.isVideo ? (
