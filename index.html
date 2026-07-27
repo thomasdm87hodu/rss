@@ -29,36 +29,6 @@
     ];
 
     // =====================================================================
-    // HOTZONE DICTIONARY
-    // =====================================================================
-    const HOTZONES = {
-        "Tehran": [35.6892, 51.3890], "Isfahan": [32.6539, 51.6660], "Kharg Island": [29.2333, 50.3167],
-        "Bandar Abbas": [29.1833, 56.2667], "Kermanshah": [34.3142, 47.0650], "Shiraz": [29.5918, 52.5836],
-        "Tabriz": [38.0700, 46.2919], "Natanz": [33.5833, 51.9333], "Qom": [34.6401, 50.8764], "Bushehr": [28.9234, 50.8203],
-        "Tel Aviv": [32.0853, 34.7818], "Jerusalem": [31.7683, 35.2137], "Gaza": [31.5017, 34.4668],
-        "Haifa": [32.7940, 34.9896], "Eilat": [29.5581, 34.9482], "Ashkelon": [31.6693, 34.5715],
-        "Ashdod": [31.8014, 34.6435], "Sderot": [31.5235, 34.5956], "Rafah": [31.2804, 34.2595],
-        "West Bank": [32.0000, 35.2500], "Golan Heights": [33.0000, 35.7500], "Tiberias": [32.7940, 35.5331],
-        "Safed": [32.9646, 35.4960], "Beersheba": [31.2518, 34.7913], "Negev": [30.5000, 34.8333],
-        "Beirut": [33.8938, 35.5018], "Dahieh": [33.8443, 35.5085], "Tyre": [33.2705, 35.1963],
-        "Sidon": [33.5571, 35.3729], "Baalbek": [34.0058, 36.2181], "Nabatieh": [33.3772, 35.4838],
-        "Bekaa Valley": [33.9984, 36.1469], "Marjayoun": [33.3606, 35.5900], "Litani": [33.3323, 35.2513],
-        "Damascus": [33.5138, 36.2765], "Aleppo": [36.2012, 37.1612], "Homs": [34.7324, 36.7137],
-        "Latakia": [35.5206, 35.7772], "Tartus": [34.8890, 35.8866], "Palmyra": [34.5504, 38.2810],
-        "Deir ez-Zor": [35.3353, 40.1436], "Idlib": [35.9306, 36.6339], "Quneitra": [33.1256, 35.8236],
-        "Sanaa": [15.3694, 44.1910], "Hodeidah": [14.7978, 42.9545], "Aden": [12.8000, 45.0333],
-        "Taiz": [13.5795, 44.0205], "Red Sea": [20.0000, 38.0000], "Gulf of Aden": [12.0000, 48.0000],
-        "Bab el-Mandeb": [12.5833, 43.3333], "Baghdad": [33.3152, 44.3661], "Erbil": [36.1901, 44.0090],
-        "Basra": [30.5081, 47.7835], "Al Asad": [33.7946, 42.4369], "Mosul": [36.3400, 43.1300],
-        "Kirkuk": [35.4681, 44.3922], "Camp Taji": [33.5350, 44.2540], "Abu Dhabi": [24.4539, 54.3773],
-        "Dubai": [25.2048, 55.2708], "UAE": [23.4241, 53.8478], "United Arab Emirates": [23.4241, 53.8478],
-        "Al Dhafra": [24.2483, 54.5476], "Persian Gulf": [26.0000, 52.0000], "Amman": [31.9522, 35.9334],
-        "Aqaba": [29.5267, 35.0078], "Zarqa": [32.0728, 36.0880], "Cairo": [30.0444, 31.2357],
-        "Sinai": [29.5000, 33.8333], "Suez": [29.9668, 32.5498], "Riyadh": [24.7136, 46.6753],
-        "Jeddah": [21.4858, 39.1925]
-    };
-
-    // =====================================================================
     // GLOBAL HELPERS
     // =====================================================================
     const formatDuration = (seconds) => {
@@ -243,7 +213,14 @@
       const [errorMsg, setErrorMsg] = useState('');
       const [infoMsg, setInfoMsg] = useState('');
       const [copied, setCopied] = useState(false);
+      
+      // AI EXPORT Settings
       const [aiTextCopied, setAiTextCopied] = useState(false);
+      const [showAiSettings, setShowAiSettings] = useState(false);
+      const [aiExportConfig, setAiExportConfig] = useState({
+          includeMetadata: false,
+          includeLinks: false
+      });
       
       const [carouselIndex, setCarouselIndex] = useState(0);
       const [lightbox, setLightbox] = useState(null);
@@ -301,6 +278,51 @@
         if (config.layout === 'ticker') setExportHeight('60px');
         else if (exportHeight === '60px') setExportHeight('500px');
       }, [config.layout]);
+
+      const handleCopyTextForAI = (e) => {
+        e.preventDefault();
+        
+        // Determine which items to export (respects manual selections in Slideshow Mode)
+        let itemsToExport = displayItems;
+        if (config.layout === 'slideshow' && selectedVideos.length > 0) {
+            itemsToExport = displayItems.filter(item => selectedVideos.includes(item.id));
+        }
+
+        let textToCopy = "=== NEWS FEED EXPORT ===\n\n";
+
+        itemsToExport.forEach((item, index) => {
+            const title = cleanText(item.title, config.removeText);
+            const desc = cleanText(item.description, config.removeText);
+            const source = config.sourceOverride || item.source || 'Unknown Source';
+            const time = timeAgo(item.time) || item.time || 'Unknown Time';
+            
+            textToCopy += `[${index + 1}] ${title}\n`;
+            
+            if (aiExportConfig.includeMetadata) {
+                textToCopy += `Source: ${source} | Time: ${time}\n`;
+            }
+            if (aiExportConfig.includeLinks && item.link) {
+                textToCopy += `Link: ${item.link}\n`;
+            }
+            
+            if (desc) textToCopy += `Summary: ${desc}\n`;
+            textToCopy += `----------------------------------------\n\n`;
+        });
+
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            setAiTextCopied(true);
+            setTimeout(() => setAiTextCopied(false), 2000);
+            setShowAiSettings(false);
+        } catch (err) {
+            console.error('Failed to copy text', err);
+        }
+        document.body.removeChild(textArea);
+      };
 
       const fetchFeedData = useCallback(async (targetUrlsStr, isSilent = false) => {
         if (!isSilent) {
@@ -364,6 +386,12 @@
                     if (messages.length === 0) break;
 
                     messages.forEach((msg) => {
+                      // Prevent quoting issues: Remove replied-to or forwarded message blocks before parsing text
+                      const quoteBlock = msg.querySelector('.tgme_widget_message_reply');
+                      if (quoteBlock) quoteBlock.remove();
+                      const forwardBlock = msg.querySelector('.tgme_widget_message_forwardeded_from');
+                      if (forwardBlock) forwardBlock.remove();
+
                       const textEl = msg.querySelector('.tgme_widget_message_text');
                       const dateLink = msg.querySelector('.tgme_widget_message_date');
                       
@@ -770,44 +798,6 @@
         document.body.removeChild(textArea);
       };
 
-      const handleCopyTextForAI = (e) => {
-        e.preventDefault();
-        
-        // Determine which items to export (respects manual selections in Slideshow Mode)
-        let itemsToExport = displayItems;
-        if (config.layout === 'slideshow' && selectedVideos.length > 0) {
-            itemsToExport = displayItems.filter(item => selectedVideos.includes(item.id));
-        }
-
-        let textToCopy = "=== NEWS FEED EXPORT ===\n\n";
-
-        itemsToExport.forEach((item, index) => {
-            const title = cleanText(item.title, config.removeText);
-            const desc = cleanText(item.description, config.removeText);
-            const source = config.sourceOverride || item.source || 'Unknown Source';
-            const time = timeAgo(item.time) || item.time || 'Unknown Time';
-            
-            textToCopy += `[${index + 1}] ${title}\n`;
-            textToCopy += `Source: ${source} | Time: ${time}\n`;
-            textToCopy += `Link: ${item.link}\n`;
-            if (desc) textToCopy += `Summary: ${desc}\n`;
-            textToCopy += `----------------------------------------\n\n`;
-        });
-
-        const textArea = document.createElement("textarea");
-        textArea.value = textToCopy;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-            document.execCommand('copy');
-            setAiTextCopied(true);
-            setTimeout(() => setAiTextCopied(false), 2000);
-        } catch (err) {
-            console.error('Failed to copy text', err);
-        }
-        document.body.removeChild(textArea);
-      };
-
       const toggleVideoSelection = (id) => {
           setSelectedVideos(prev => 
               prev.includes(id) ? prev.filter(vidId => vidId !== id) : [...prev, id]
@@ -888,7 +878,10 @@
       const prevSlide = () => setCarouselIndex((prev) => displayItems.length ? (prev - 1 + displayItems.length) % displayItems.length : 0);
 
       const durationMultiplier = (safeItemCount * config.tickerCharLimit) / 400;
-      const tickerDuration = (110 - config.tickerSpeed) * durationMultiplier;
+      // Remap ticker duration so a speed setting of 1-10 is ultra slow
+      // Old logic: 110 - speed. New logic: If speed is low, extend duration drastically.
+      const tickerBaseMultiplier = config.tickerSpeed < 20 ? (150 - config.tickerSpeed * 2) : (110 - config.tickerSpeed);
+      const tickerDuration = tickerBaseMultiplier * durationMultiplier;
 
       const getGradientStyle = () => {
          return { background: `linear-gradient(to bottom right, ${config.theme === 'dark' ? '#1e293b' : '#f1f5f9'}, ${config.accentColor})` };
@@ -1099,10 +1092,88 @@
 
                   {config.carouselMode && displayItems.length > 1 && (
                     <div className="flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
                         <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                       </button>
                       <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                        {activeCarouselIndex + 1} / {displayItems.length}
+                      </span>
+                      <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                        Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* FEED LAYOUT */}
+              {config.layout === 'feed' && (
+                <div className={`relative w-full group/carousel ${config.seamless ? 'h-full flex flex-col' : ''}`}>
+                  <div className={`${config.seamless ? 'space-y-0 pb-0 flex-1 h-full' : 'space-y-6 pb-2'}`}>
+                    {displayItems.map((item, idx) => {
+                      if (config.carouselMode && idx !== activeCarouselIndex) return null;
+                      const resolvedImage = item.image || config.fallbackImage;
+                      const hasMedia = item.video || item.isVideo || resolvedImage;
+
+                      return (
+                        <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                          
+                          {config.showImages && hasMedia && (
+                            <div className={`w-full overflow-hidden bg-black/90 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
+                              
+                              {/* Cinematic Background Blur */}
+                              {resolvedImage && (
+                                <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                                  <img src={resolvedImage} className="w-full h-full object-cover filter blur-2xl grayscale opacity-40 scale-125" aria-hidden="true" onError={(e) => e.target.style.display = 'none'} />
+                                </div>
+                              )}
+
+                              {item.video ? (
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                  <AutoPlayVideo src={item.video} poster={resolvedImage} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              ) : item.isVideo ? (
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                  {resolvedImage && <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
+                                  <div className={`absolute inset-0 flex items-center justify-center transition-colors ${resolvedImage ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              ) : (
+                                <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: resolvedImage}); }}>
+                                  <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className={`flex flex-col justify-center min-w-0 ${config.seamless ? 'p-4 shrink-0' : 'flex-1 px-1'}`}>
+                            <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
+                              <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
+                                {cleanText(item.title, config.removeText)}
+                              </h3>
+                              <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
+                                {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                              </div>
+                              {config.showDescription && item.description && (
+                                <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                  {cleanText(item.description, config.removeText)}
+                                </p>
+                              )}
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {config.carouselMode && displayItems.length > 1 && (
+                    <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
+                      <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                        <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                      </button>
+                      <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
                         {activeCarouselIndex + 1} / {displayItems.length}
                       </span>
                       <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
@@ -1126,7 +1197,7 @@
                         <div className="w-full h-36 overflow-hidden bg-gray-200 dark:bg-slate-700 border-b border-inherit relative">
                           {item.video ? (
                             <div className="w-full h-full relative cursor-pointer group/media overflow-hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
-                              <video src={item.video} poster={resolvedImage} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
+                              <AutoPlayVideo src={item.video} poster={resolvedImage} className="w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-3xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
                             </div>
                           ) : item.isVideo ? (
@@ -1654,15 +1725,39 @@
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">Live Preview <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span></h2>
                     <div className="flex items-center gap-3">
-                      <button 
-                        onClick={handleCopyTextForAI}
-                        disabled={displayItems.length === 0}
-                        className="text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 border border-indigo-200 disabled:opacity-50"
-                        title="Copy formatted text to clipboard for ChatGPT / Claude"
-                      >
-                        {aiTextCopied ? <i className="fa-solid fa-check"></i> : <i className="fa-solid fa-robot"></i>}
-                        {aiTextCopied ? 'Copied for AI!' : 'Copy Text for AI'}
-                      </button>
+                      <div className="relative">
+                          <button 
+                            onClick={() => setShowAiSettings(!showAiSettings)}
+                            disabled={displayItems.length === 0}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-l-md transition-colors flex items-center gap-1.5 border-y border-l ${showAiSettings ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200'} disabled:opacity-50`}
+                            title="AI Export Settings"
+                          >
+                            <i className="fa-solid fa-gear"></i>
+                          </button>
+                          <button 
+                            onClick={handleCopyTextForAI}
+                            disabled={displayItems.length === 0}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-r-md transition-colors flex items-center gap-1.5 border-y border-r border-l border-indigo-200 disabled:opacity-50 ${aiTextCopied ? 'bg-green-500 text-white border-green-500' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'}`}
+                            title="Copy formatted text to clipboard for ChatGPT / Claude"
+                          >
+                            {aiTextCopied ? <i className="fa-solid fa-check"></i> : <i className="fa-solid fa-robot"></i>}
+                            {aiTextCopied ? 'Copied for AI!' : 'Copy Text'}
+                          </button>
+                          
+                          {showAiSettings && (
+                              <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999] p-3">
+                                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Export Options</h4>
+                                  <label className="flex items-center gap-2 mb-2 cursor-pointer group">
+                                      <input type="checkbox" checked={aiExportConfig.includeMetadata} onChange={(e) => setAiExportConfig({...aiExportConfig, includeMetadata: e.target.checked})} className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                      <span className="text-xs font-medium text-gray-700 group-hover:text-gray-900">Include Author & Time</span>
+                                  </label>
+                                  <label className="flex items-center gap-2 cursor-pointer group">
+                                      <input type="checkbox" checked={aiExportConfig.includeLinks} onChange={(e) => setAiExportConfig({...aiExportConfig, includeLinks: e.target.checked})} className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                      <span className="text-xs font-medium text-gray-700 group-hover:text-gray-900">Include Source Links</span>
+                                  </label>
+                              </div>
+                          )}
+                      </div>
                       <div className="text-xs px-2 py-1 bg-gray-200 text-gray-600 rounded font-medium">Rendered Output</div>
                     </div>
                   </div>
@@ -1899,6 +1994,84 @@
                                     <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                   </button>
                                   <span className={`text-xs font-medium ${config.theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    {activeCarouselIndex + 1} / {displayItems.length}
+                                  </span>
+                                  <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                    Next <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* FEED LAYOUT */}
+                          {config.layout === 'feed' && (
+                            <div className={`relative w-full group/carousel ${config.seamless ? 'h-full flex flex-col' : ''}`}>
+                              <div className={`${config.seamless ? 'space-y-0 pb-0 flex-1 h-full' : 'space-y-6 pb-2'}`}>
+                                {displayItems.map((item, idx) => {
+                                  if (config.carouselMode && idx !== activeCarouselIndex) return null;
+                                  const resolvedImage = item.image || config.fallbackImage;
+                                  const hasMedia = item.video || item.isVideo || resolvedImage;
+
+                                  return (
+                                    <div key={idx} className={`group flex flex-col ${config.seamless ? 'h-full w-full rounded-xl overflow-hidden' : 'gap-4 p-4 rounded-xl border'} transition-all duration-200 hover:shadow-md ${config.theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`} style={{ backgroundColor: config.cardBgColor }}>
+                                      
+                                      {config.showImages && hasMedia && (
+                                        <div className={`w-full overflow-hidden bg-black/90 relative flex items-center justify-center ${config.seamless ? 'flex-1 min-h-0' : 'rounded-lg'}`}>
+                                          
+                                          {/* Cinematic Background Blur */}
+                                          {resolvedImage && (
+                                            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                                              <img src={resolvedImage} className="w-full h-full object-cover filter blur-2xl grayscale opacity-40 scale-125" aria-hidden="true" onError={(e) => e.target.style.display = 'none'} />
+                                            </div>
+                                          )}
+
+                                          {item.video ? (
+                                            <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'video', url: item.video}); }}>
+                                              <AutoPlayVideo src={item.video} poster={resolvedImage} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover pointer-events-none group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} />
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover/media:bg-black/30 transition-colors"><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-80 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                            </div>
+                                          ) : item.isVideo ? (
+                                            <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'iframe', url: item.embedUrl}); }}>
+                                              {resolvedImage && <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />}
+                                              <div className={`absolute inset-0 flex items-center justify-center transition-colors ${resolvedImage ? 'bg-black/20 group-hover/media:bg-black/40' : 'bg-blue-600/20 group-hover/media:bg-blue-600/40'}`}><i className="fa-solid fa-play text-white text-4xl drop-shadow opacity-90 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                            </div>
+                                          ) : (
+                                            <div className="w-full h-full relative z-10 cursor-pointer group/media overflow-hidden flex justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightbox({type: 'image', url: resolvedImage}); }}>
+                                              <img src={resolvedImage} referrerPolicy="no-referrer" alt={item.title} className={`w-full ${config.seamless ? 'h-full' : 'h-auto max-h-[60vh]'} object-cover group-hover:scale-[1.02] transition-transform duration-500 mx-auto`} onError={(e) => e.target.style.display = 'none'} />
+                                              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/20 transition-colors"><i className="fa-solid fa-expand text-white text-4xl drop-shadow opacity-0 group-hover/media:opacity-100 group-hover/media:scale-110 transition-all"></i></div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      <div className={`flex flex-col justify-center min-w-0 ${config.seamless ? 'p-4 shrink-0' : 'flex-1 px-1'}`}>
+                                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
+                                          <h3 className="font-medium text-[15px] sm:text-base leading-snug mb-2 line-clamp-[10] group-hover:underline decoration-2 underline-offset-2 whitespace-pre-wrap" style={{ textDecorationColor: config.accentColor }}>
+                                            {cleanText(item.title, config.removeText)}
+                                          </h3>
+                                          <div className={`flex items-center gap-3 text-[10px] font-medium mt-1 ${config.theme === 'dark' ? 'opacity-70' : 'opacity-60'}`}>
+                                            {item.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn"></i>{config.sourceOverride || item.source}</span>}
+                                            {item.time && <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i>{timeAgo(item.time)}</span>}
+                                          </div>
+                                          {config.showDescription && item.description && (
+                                            <p className={`text-sm mt-2 line-clamp-3 ${config.theme === 'dark' ? 'opacity-80' : 'opacity-70'}`}>
+                                              {cleanText(item.description, config.removeText)}
+                                            </p>
+                                          )}
+                                        </a>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {config.carouselMode && displayItems.length > 1 && (
+                                <div className={`flex justify-between items-center mt-2 px-2 pb-4 transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${config.seamless ? 'absolute bottom-4 left-0 right-0 z-10' : ''}`}>
+                                  <button onClick={prevSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
+                                    <i className="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                                  </button>
+                                  <span className={`text-xs font-medium px-2 py-1 rounded backdrop-blur-sm ${config.theme === 'dark' ? 'text-slate-200 bg-black/30' : 'text-gray-700 bg-white/50'}`}>
                                     {activeCarouselIndex + 1} / {displayItems.length}
                                   </span>
                                   <button onClick={nextSlide} className={`px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors ${config.theme === 'dark' ? 'bg-slate-800/90 hover:bg-slate-700 text-white' : 'bg-white/90 hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-700'}`}>
