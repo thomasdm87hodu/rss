@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { formatPostsForPrompt, generateDailyArticle, getWatchlistSignals } from "../lib/article.js";
+import { formatPostsForPrompt, generateDailyArticle } from "../lib/article.js";
 import { getUtcDayWindow, parseTelegramPreview } from "../lib/telegram.js";
 
-test("parses text posts while excluding replies and forwarded blocks", () => {
+test("parses text posts, preserves forwarded bodies, and removes source footers", () => {
   const html = `
     <div class="tgme_widget_message" data-post="channel/1">
       <div class="tgme_widget_message_text">Main post<br>with a second line</div>
@@ -12,8 +12,10 @@ test("parses text posts while excluding replies and forwarded blocks", () => {
       <div class="tgme_widget_message_date"><time datetime="2026-08-07T18:00:00+00:00"></time><a href="https://t.me/channel/1"></a></div>
     </div>
     <div class="tgme_widget_message" data-post="channel/2">
-      <div class="tgme_widget_message_forwarded_from"><div class="tgme_widget_message_text">Forwarded text</div></div>
-      <div class="tgme_widget_message_text">Own text</div>
+      <div class="tgme_widget_message_forwarded_from">
+        <div class="tgme_widget_message_forwarded_from_name">Breaking Israel + News</div>
+        <div class="tgme_widget_message_text">Forwarded text<br><br>Follow: @breakingisraelnews<br>Get daily updates: bibliwatch.com</div>
+      </div>
       <div class="tgme_widget_message_date"><time datetime="2026-08-07T19:00:00+00:00"></time><a href="https://t.me/channel/2"></a></div>
     </div>
     <div class="tme_messages_more"><a href="/s/channel?before=1">Show more</a></div>
@@ -22,7 +24,7 @@ test("parses text posts while excluding replies and forwarded blocks", () => {
   const parsed = parseTelegramPreview(html, "https://t.me/s/channel");
   assert.equal(parsed.posts.length, 2);
   assert.equal(parsed.posts[0].text, "Main post\nwith a second line");
-  assert.equal(parsed.posts[1].text, "Own text");
+  assert.equal(parsed.posts[1].text, "Forwarded text");
   assert.equal(parsed.nextUrl, "https://t.me/s/channel?before=1");
 });
 
@@ -39,19 +41,6 @@ test("formats only supplied posts for the article prompt", () => {
   ]);
   assert.match(result, /A reported event/);
   assert.doesNotMatch(result, /external research/);
-});
-
-test("scores multiple core watchlist signals", () => {
-  const signals = getWatchlistSignals("Trump spoke with Netanyahu about Iran and Syria after Putin's statement.");
-  assert.deepEqual(signals.labels, [
-    "United States / US / American / Trump",
-    "Iran / Iranian / Khamenei",
-    "Syria / Syrian / al-Sharaa / al-Julani",
-    "Russia / Russian / Putin",
-    "Netanyahu",
-  ]);
-  assert.equal(signals.seniorOfficial, false);
-  assert.equal(signals.score, 23);
 });
 
 test("normalizes article spacing and removes em dashes", async () => {
