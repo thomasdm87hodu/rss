@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { formatPostsForPrompt } from "../lib/article.js";
+import { formatPostsForPrompt, generateDailyArticle } from "../lib/article.js";
 import { getUtcDayWindow, parseTelegramPreview } from "../lib/telegram.js";
 
 test("parses text posts while excluding replies and forwarded blocks", () => {
@@ -39,4 +39,29 @@ test("formats only supplied posts for the article prompt", () => {
   ]);
   assert.match(result, /A reported event/);
   assert.doesNotMatch(result, /external research/);
+});
+
+test("normalizes article spacing and removes em dashes", async () => {
+  const article = await generateDailyArticle({
+    apiKey: "test-key",
+    date: "2026-08-07",
+    posts: [{ publishedAt: "2026-08-07T19:00:00.000Z", text: "A reported event" }],
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return {
+          output_text: JSON.stringify({
+            title: "A headline — without an em dash",
+            summary: "A summary — without an em dash.",
+            contentHtml:
+              '<p><strong>Briefing Summary:</strong> Summary — detail.</p><h2>First section</h2><ul><li data-preset-tag="p"><p><strong>Lead:</strong> Detail.<br><br class="trailing-break"></p></li></ul><h2>Second section</h2><ul><li data-preset-tag="p"><p><strong>Lead:</strong> More detail.</p></li></ul>',
+          }),
+        };
+      },
+    }),
+  });
+
+  assert.doesNotMatch(`${article.title}${article.summary}${article.contentHtml}`, /—|&mdash;|&#8212;/);
+  assert.equal((article.contentHtml.match(/class="trailing-break"/g) || []).length, 3);
+  assert.match(article.contentHtml, /<p><br><br class="trailing-break"><\/p><h2>Second section<\/h2>/);
 });
