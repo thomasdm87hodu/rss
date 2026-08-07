@@ -63,6 +63,7 @@ export default async function handler(req, res) {
       draft: true,
       itemId: result.item?.id || null,
       slug: result.item?.slug || null,
+      number: result.number || null,
       created: result.created,
       updated: result.updated,
       alreadyLive: result.alreadyLive || false,

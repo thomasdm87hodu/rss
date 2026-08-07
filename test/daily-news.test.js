@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { formatPostsForPrompt, generateDailyArticle } from "../lib/article.js";
+import { formatPostsForPrompt, generateDailyArticle, getWatchlistSignals } from "../lib/article.js";
 import { getUtcDayWindow, parseTelegramPreview } from "../lib/telegram.js";
 
 test("parses text posts while excluding replies and forwarded blocks", () => {
@@ -39,6 +39,19 @@ test("formats only supplied posts for the article prompt", () => {
   ]);
   assert.match(result, /A reported event/);
   assert.doesNotMatch(result, /external research/);
+});
+
+test("scores multiple core watchlist signals", () => {
+  const signals = getWatchlistSignals("Trump spoke with Netanyahu about Iran and Syria after Putin's statement.");
+  assert.deepEqual(signals.labels, [
+    "United States / US / American / Trump",
+    "Iran / Iranian / Khamenei",
+    "Syria / Syrian / al-Sharaa / al-Julani",
+    "Russia / Russian / Putin",
+    "Netanyahu",
+  ]);
+  assert.equal(signals.seniorOfficial, false);
+  assert.equal(signals.score, 23);
 });
 
 test("normalizes article spacing and removes em dashes", async () => {
