@@ -55,6 +55,11 @@ test("normalizes article spacing and removes em dashes", async () => {
             summary: "A summary — without an em dash.",
             contentHtml:
               '<p><strong>Briefing Summary:</strong> Summary — detail.</p><h2>First section</h2><ul><li data-preset-tag="p"><p><strong>Lead:</strong> Detail.<br><br class="trailing-break"></p></li></ul><h2>Second section</h2><ul><li data-preset-tag="p"><p><strong>Lead:</strong> More detail.</p></li></ul>',
+            alternativeTitles: [
+              "Alternative headline one — without an em dash",
+              "Alternative headline two",
+              "Alternative headline three",
+            ],
           }),
         };
       },
@@ -62,6 +67,13 @@ test("normalizes article spacing and removes em dashes", async () => {
   });
 
   assert.doesNotMatch(`${article.title}${article.summary}${article.contentHtml}`, /—|&mdash;|&#8212;/);
-  assert.equal((article.contentHtml.match(/class="trailing-break"/g) || []).length, 3);
+  assert.equal((article.contentHtml.match(/class="trailing-break"/g) || []).length, 7);
   assert.match(article.contentHtml, /<p><br><br class="trailing-break"><\/p><h2>Second section<\/h2>/);
+  assert.match(article.contentHtml, /<h2>Alternative headline suggestions<\/h2>/);
+  assert.match(article.contentHtml, /Alternative headline one - without an em dash/);
+  assert.deepEqual(article.alternativeTitles, [
+    "Alternative headline one - without an em dash",
+    "Alternative headline two",
+    "Alternative headline three",
+  ]);
 });
